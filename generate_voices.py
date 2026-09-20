@@ -4,7 +4,9 @@ import urllib.request
 import urllib.error
 import time
 
-API_KEY = "sk_785d5f75a0e3ec89f4d5fcfc73b8823ae9dfeacacc9566e4"
+API_KEY = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+if not API_KEY and __name__ == "__main__":
+    pass  # validated inside main() with a clear error
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "assets", "audio")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -116,6 +118,11 @@ def generate_voice(item):
         return False
 
 def main():
+    if not API_KEY:
+        print("ERROR: ELEVENLABS_API_KEY is not set.")
+        print("  Copy .env.example to .env and add your key, or run:")
+        print("  $env:ELEVENLABS_API_KEY='<key>'; python generate_voices.py  (PowerShell)")
+        raise SystemExit(1)
     print(f"Starting ElevenLabs voice generation into {OUTPUT_DIR}...")
     success_count = 0
     for item in VOICE_SCRIPTS:

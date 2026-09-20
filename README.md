@@ -49,21 +49,52 @@ Protect the 5 Sacred Diyas (temple oil lamps) burning around the inner sanctum. 
 
 ## 🚀 Getting Started
 
-No installations or build tools required!
+No build tools required for the frontend — it's pure HTML/CSS/JS.
 
-### Option 1: Direct Browser
+### Option 1: Direct Browser (frontend only)
 Simply double-click [`index.html`](index.html) to open the game in any modern web browser (Chrome, Edge, Firefox, Safari).
+> Note: scoreboard persistence needs the backend (Option 2). Without it, scores are kept in `localStorage` only.
 
-### Option 2: Local HTTP Server (Optional)
-If you prefer running through a local server:
+### Option 2: Production Server (recommended — frontend + Excel scoreboard API)
+Requires Python 3.10+.
+
 ```bash
-# Using Python
-python -m http.server 8000
+# 1. Install dependencies
+pip install -r requirements.txt
 
-# Or using Node.js (npx)
-npx serve .
+# 2. Configure (optional — only needed for voice/TTS features)
+copy .env.example .env   # Windows
+# cp .env.example .env   # macOS/Linux
+# then set ELEVENLABS_API_KEY inside .env
+
+# 3. Run
+python server.py          # defaults to http://localhost:8080
+python server.py 8000     # …or pick a port (env PORT wins)
 ```
-Then visit `http://localhost:8000` in your browser.
+Then visit `http://localhost:8080` in your browser.
+
+**API endpoints**
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/health` | Health check (`{"ok": true}`) |
+| GET | `/api/campuses` | NIAT campus list |
+| GET | `/api/scores` | Scoreboard sessions + campus rankings |
+| POST | `/api/score` | Submit a score (validated, capped) |
+| GET | `/api/download-excel` | Download `vighnaharta_scores.xlsx` |
+| POST | `/api/tts` | ElevenLabs TTS proxy (needs `ELEVENLABS_API_KEY`, else 503) |
+
+**Docker**
+
+```bash
+docker build -t vighnaharta .
+docker run -p 8080:8080 vighnaharta
+```
+
+### 🛡️ Production notes
+- Secrets live in the environment (`.env`, never committed). If you previously used a hardcoded API key, **rotate it** — it is in git history.
+- The live scoreboard `vighnaharta_scores.xlsx` is auto-created on first score and is git-ignored; to stop tracking the seed copy run `git rm --cached vighnaharta_scores.xlsx`.
+- The server only serves whitelisted public files (`index.html`, `game.js`, `style.css`, `assets/…`); source files, `.env`, and `.git` return 404, and API responses are `no-store` with `nosniff` / `SAMEORIGIN` headers.
 
 ---
 
@@ -73,6 +104,7 @@ Then visit `http://localhost:8000` in your browser.
 - **UI & Layout**: Semantic HTML5, CSS3 Glassmorphism, SVG vectors, Google Fonts
 - **Audio**: Web Audio API (Synthesized acoustic temple bells, chimes, and resonance)
 - **Architecture**: Pure Vanilla JavaScript with zero external frameworks or heavy dependencies
+- **Backend**: Python `http.server` (threaded) + `openpyxl` Excel scoreboard, validated JSON API, Docker-ready
 
 ---
 

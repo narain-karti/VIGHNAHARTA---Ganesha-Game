@@ -6,6 +6,7 @@
   <title>VIGHNAHARTA — The Obstacle Breaker | गणेश चतुर्थी</title>
   <meta name="description" content="A Traditional Indian Devotional Pixel-Art Arcade game celebrating Ganesh Chaturthi. Tap dark vighnas to invoke Lord Ganesha's sacred golden blessings.">
   <meta name="theme-color" content="#1A0533">
+  <meta name="color-scheme" content="dark">
   
   <!-- Traditional & Modern Typography (English, Hindi, Tamil, Telugu, Kannada, Marathi) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -215,7 +216,7 @@
         <div class="hero-halo"></div>
         <div class="hero-mandala-ring"></div>
         <div class="hero-image-wrapper">
-          <img src="assets/ganesha.jpg" alt="Lord Ganesha - The Sacred Protected Centre" class="ganesha-hero-img" id="titleGaneshaImg" width="220" height="220">
+          <img src="assets/ganesha.jpg" alt="Lord Ganesha - The Sacred Protected Centre" class="ganesha-hero-img" id="titleGaneshaImg" width="220" height="220" onerror="this.style.display='none'">
         </div>
       </div>
 
@@ -323,6 +324,7 @@
           </div>
         </div>
       </div>
+      <p class="gameover-sync-status" id="goSyncStatusText" aria-live="polite"></p>
 
       <!-- Game Over Action Buttons -->
       <div class="gameover-actions">

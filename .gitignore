@@ -5,3 +5,19 @@ scratch/
 Thumbs.db
 __pycache__/
 *.pyc
+
+# Production: local secrets & runtime artefacts (never commit)
+.env
+.env.local
+venv/
+.venv/
+*.log
+*.sqlite3
+*.db
+
+# Production scoreboard database (auto-created at runtime by excel_db.py).
+# NOTE: vighnaharta_scores.xlsx is currently tracked with seed data.
+# To stop recording live scores as git modifications, run:
+#   git rm --cached vighnaharta_scores.xlsx
+# then commit the removal (file stays on disk, future scores stay untracked).
+vighnaharta_scores.xlsx

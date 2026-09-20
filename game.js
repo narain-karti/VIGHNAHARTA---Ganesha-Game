@@ -239,6 +239,50 @@ const uiBtnCardLangKn = document.getElementById('btnCardLangKn');
 const uiBtnCardLangMr = document.getElementById('btnCardLangMr');
 let cardLanguage = 'en'; // 'en' | 'ta' | 'te' | 'hi' | 'kn' | 'mr'
 let userManuallyChangedLang = false;
+// Optional sync-status line on the game-over screen (may not exist in DOM).
+const uiGoSyncStatusText = document.getElementById('goSyncStatusText');
+
+// Escape user-controlled strings before injecting into innerHTML templates.
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Non-blocking form error: red ring + shake + focus (no window.alert).
+function showRegError(inputEl, message) {
+  try {
+    if (window.__vighnahartaToastTimer) clearTimeout(window.__vighnahartaToastTimer);
+    let toast = document.getElementById('regErrorToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'regErrorToast';
+      toast.setAttribute('role', 'alert');
+      toast.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);'
+        + 'background:rgba(120,10,10,.95);color:#FFF8E1;border:1px solid #FFD700;border-radius:10px;'
+        + 'padding:10px 16px;font:700 .85rem Outfit,sans-serif;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.6);'
+        + 'max-width:min(92vw,420px);text-align:center;';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.display = 'block';
+    window.__vighnahartaToastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3200);
+    if (inputEl) {
+      inputEl.focus();
+      const prev = inputEl.style.boxShadow;
+      inputEl.style.boxShadow = '0 0 0 2px #C62828, 0 0 12px rgba(198,40,40,.7)';
+      inputEl.animate(
+        [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' },
+         { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }],
+        { duration: 280 }
+      );
+      setTimeout(() => { inputEl.style.boxShadow = prev; }, 1800);
+    }
+  } catch (e) { /* never break registration on toast failure */ }
+}
 
 // Mushika Companion & Dialogue DOM Elements (Voice audio disabled per user request)
 const uiMushikaCompanion = document.getElementById('mushikaCompanion');
@@ -300,17 +344,15 @@ function saveDevoteeProfile() {
   const studentId = (uiInputStudentId ? uiInputStudentId.value : '').trim();
 
   if (!name) {
-    alert('Please enter your Devotee Name / कृपया अपना नाम दर्ज करें।');
-    if (uiInputDevoteeName) uiInputDevoteeName.focus();
+    showRegError(uiInputDevoteeName, 'Please enter your Devotee Name / कृपया अपना नाम दर्ज करें।');
     return false;
   }
   if (!campus) {
-    alert('Please choose your NIAT Campus / कृपया अपना NIAT कैंपस चुनें।');
-    if (uiSelectNiatCampus) uiSelectNiatCampus.focus();
+    showRegError(uiSelectNiatCampus, 'Please choose your NIAT Campus / कृपया अपना NIAT कैंपस चुनें।');
     return false;
   }
 
-  currentDevotee = { name, campus, studentId };
+  currentDevotee = { name: name.slice(0, 45), campus, studentId: studentId.slice(0, 30) };
   localStorage.setItem('vighnaharta_player_name', name);
   localStorage.setItem('vighnaharta_player_campus', campus);
   localStorage.setItem('vighnaharta_player_id', studentId);
@@ -326,15 +368,20 @@ function saveDevoteeProfile() {
 
 // Database record submission (Excel file & browser cache)
 async function recordScoreToDatabase(scoreVal, waveVal, clearedVal, comboVal, blessingsVal) {
+  const clampNum = (v, lo, hi, fallback) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(lo, Math.min(hi, Math.floor(n)));
+  };
   const payload = {
-    name: currentDevotee.name || 'Anonymous Devotee',
-    campus: currentDevotee.campus || 'NIAT - General',
-    studentId: currentDevotee.studentId || '',
-    score: scoreVal,
-    wave: waveVal,
-    cleared: clearedVal,
-    combo: comboVal,
-    blessings: blessingsVal
+    name: String(currentDevotee.name || 'Anonymous Devotee').slice(0, 45),
+    campus: String(currentDevotee.campus || 'NIAT - General').slice(0, 120),
+    studentId: String(currentDevotee.studentId || '').slice(0, 30),
+    score: clampNum(scoreVal, 0, 10000000, 0),
+    wave: clampNum(waveVal, 1, 999, 1),
+    cleared: clampNum(clearedVal, 0, 100000, 0),
+    combo: clampNum(comboVal, 1, 999, 1),
+    blessings: clampNum(blessingsVal, 0, 99, 0)
   };
 
   // 1. Save to browser persistent database
@@ -452,11 +499,11 @@ function renderLeaderboardTable() {
       return `
         <tr>
           <td style="text-align: center;"><span class="rank-badge ${rankCls}">${c.rank}</span></td>
-          <td><strong style="color: var(--gold);">${c.campus}</strong></td>
-          <td style="text-align: center;">${c.totalDevotees}</td>
+          <td><strong style="color: var(--gold);">${escapeHtml(c.campus)}</strong></td>
+          <td style="text-align: center;">${Number(c.totalDevotees).toLocaleString()}</td>
           <td style="text-align: right;" class="score-text-gold">${Number(c.totalScore).toLocaleString()}</td>
           <td style="text-align: right;">${Number(c.highestScore).toLocaleString()}</td>
-          <td>${c.topDevotee || 'N/A'}</td>
+          <td>${escapeHtml(c.topDevotee) || 'N/A'}</td>
         </tr>
       `;
     }).join('');
@@ -486,13 +533,13 @@ function renderLeaderboardTable() {
 
     uiTableLeaderboardBody.innerHTML = data.sessions.slice(0, 30).map(s => `
       <tr>
-        <td style="font-size: 0.75rem; color: #B0BEC5;">${s.timestamp}</td>
-        <td><strong>${s.name}</strong></td>
-        <td style="font-size: 0.8rem; color: #FFE082;">${s.campus}</td>
+        <td style="font-size: 0.75rem; color: #B0BEC5;">${escapeHtml(s.timestamp)}</td>
+        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td style="font-size: 0.8rem; color: #FFE082;">${escapeHtml(s.campus)}</td>
         <td style="text-align: right;" class="score-text-gold">${Number(s.score).toLocaleString()}</td>
-        <td style="text-align: center;">Wave ${s.wave}</td>
-        <td style="text-align: center;">${s.cleared}</td>
-        <td style="text-align: center; font-size: 0.75rem; color: #81C784;">${s.status || 'Completed'}</td>
+        <td style="text-align: center;">Wave ${Number(s.wave) || 1}</td>
+        <td style="text-align: center;">${Number(s.cleared) || 0}</td>
+        <td style="text-align: center; font-size: 0.75rem; color: #81C784;">${escapeHtml(s.status) || 'Completed'}</td>
       </tr>
     `).join('');
   }

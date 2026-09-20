@@ -637,6 +637,17 @@ html, body {
   letter-spacing: 1px;
 }
 
+.gameover-sync-status {
+  min-height: 1.2em;
+  font-size: 0.78rem;
+  color: #81C784;
+  margin-bottom: 10px;
+}
+
+.gameover-sync-status:empty {
+  display: none;
+}
+
 /* ============================================================
    Game Over Content
    ============================================================ */
