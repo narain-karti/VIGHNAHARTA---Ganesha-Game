@@ -52,7 +52,7 @@ const C = {
 };
 
 // --- Game State System ---
-const STATE = { TITLE: 0, PLAYING: 1, WAVE_TRANS: 2, GAME_OVER: 3 };
+const STATE = { TITLE: 0, PLAYING: 1, WAVE_TRANS: 2, GAME_OVER: 3, VICTORY: 4 };
 let state = STATE.TITLE;
 
 let score = 0;
@@ -62,8 +62,13 @@ let wave = 1;
 let combo = 0;
 let comboTimer = 0;
 let bestCombo = 0;
+let aura = 0;
+const maxAura = 100;
 let obstaclesCleared = 0;
 let waveMisses = 0;
+let eclipseAlpha = 0;
+let eclipseFlashTimer = 0;
+let isLightning = false;
 
 let waveObsCount = 8;
 let waveObsSpawned = 0;
@@ -164,6 +169,8 @@ const uiHudScore = document.getElementById('hudScore');
 const uiHudWaveText = document.getElementById('hudWaveText');
 const uiComboBadge = document.getElementById('comboBadge');
 const uiComboText = document.getElementById('comboText');
+const uiAuraMeterFill = document.getElementById('auraMeterFill');
+const uiAuraMeterText = document.getElementById('auraMeterText');
 const uiActivePowerups = document.getElementById('activePowerups');
 const uiTitleBestScore = document.getElementById('titleBestScore');
 const uiBtnPlay = document.getElementById('btnPlay');
@@ -544,14 +551,42 @@ function drawAmbient() {
 
 // --- Living Temple Night Background ---
 function drawBackground() {
-  // Deep indigo-to-purple radial night sky
-  const skyGrad = ctx.createRadialGradient(cx, cy, mandalaR * 0.8, cx, cy, spawnR);
-  skyGrad.addColorStop(0, '#310d54');
-  skyGrad.addColorStop(0.35, C.purple);
-  skyGrad.addColorStop(0.75, '#220842');
-  skyGrad.addColorStop(1, C.night);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, W, H);
+  // Clear canvas so CSS background image is visible
+  ctx.clearRect(0, 0, W, H);
+
+  // Glowing Chaturthi Crescent Moon
+  ctx.save();
+  const moonX = W * 0.82;
+  const moonY = H * 0.22;
+  const moonR = 45 * dpr;
+  // Moon Aura
+  const moonAura = ctx.createRadialGradient(moonX, moonY, moonR*0.8, moonX, moonY, moonR*3);
+  moonAura.addColorStop(0, 'rgba(255, 248, 225, 0.25)');
+  moonAura.addColorStop(1, 'rgba(255, 248, 225, 0)');
+  ctx.fillStyle = moonAura;
+  ctx.beginPath(); ctx.arc(moonX, moonY, moonR*3, 0, Math.PI * 2); ctx.fill();
+  
+  // Moon Body (Crescent)
+  ctx.fillStyle = '#FFF8E1';
+  ctx.shadowColor = '#FFF8E1';
+  ctx.shadowBlur = 15 * dpr;
+  ctx.beginPath(); ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath(); ctx.arc(moonX - 12*dpr, moonY - 12*dpr, moonR, 0, Math.PI * 2); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  // Drifting Nocturnal Clouds (Parallax Layer 1)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+  for (let i = 0; i < 5; i++) {
+    const cloudX = ((i * 400 * dpr + centrePulseTime * 15) % (W + 400 * dpr)) - 200 * dpr;
+    const cloudY = H * 0.15 + i * 50 * dpr;
+    ctx.beginPath();
+    ctx.ellipse(cloudX, cloudY, 120 * dpr, 40 * dpr, 0, 0, Math.PI * 2);
+    ctx.ellipse(cloudX + 60*dpr, cloudY - 20*dpr, 80 * dpr, 50 * dpr, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Warm Golden radial glow behind the sacred centre
   const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, mandalaR * 3.2);
@@ -614,12 +649,16 @@ function drawBackground() {
   }
   ctx.restore();
 
-  // 3. Distant Gopuram & Temple Pillar Silhouettes
+  // 3. Distant Gopuram & Temple Pillar Silhouettes (Parallax Layer 2)
   drawTempleSilhouettes();
 }
 
 function drawTempleSilhouettes() {
   ctx.save();
+  // Very slow continuous scroll to the left
+  const parallaxOffset = -(centrePulseTime * 8) % (300 * dpr);
+  ctx.translate(parallaxOffset, 0);
+
   ctx.fillStyle = 'rgba(14, 3, 28, 0.65)';
   ctx.strokeStyle = 'rgba(255, 215, 0, 0.08)';
   ctx.lineWidth = 1 * dpr;
@@ -628,54 +667,34 @@ function drawTempleSilhouettes() {
   const gopH = 140 * dpr;
   const baseY = H;
   
-  // Left Temple Tower (Tiered Shikhara)
-  ctx.beginPath();
-  ctx.moveTo(10 * dpr, baseY);
-  ctx.lineTo(10 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(18 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(18 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(26 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(35 * dpr, baseY - gopH);
-  ctx.lineTo(44 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(52 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(52 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(60 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(60 * dpr, baseY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  // Draw repeating sequence of Gopurams to cover wider scrolled area
+  for (let s = -1; s <= 2; s++) {
+    const baseX = s * (W * 0.6) + 10 * dpr;
+    
+    // Tiered Shikhara
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.lineTo(baseX, baseY - gopH * 0.4);
+    ctx.lineTo(baseX + 8 * dpr, baseY - gopH * 0.4);
+    ctx.lineTo(baseX + 8 * dpr, baseY - gopH * 0.7);
+    ctx.lineTo(baseX + 16 * dpr, baseY - gopH * 0.7);
+    ctx.lineTo(baseX + 25 * dpr, baseY - gopH);
+    ctx.lineTo(baseX + 34 * dpr, baseY - gopH * 0.7);
+    ctx.lineTo(baseX + 42 * dpr, baseY - gopH * 0.7);
+    ctx.lineTo(baseX + 42 * dpr, baseY - gopH * 0.4);
+    ctx.lineTo(baseX + 50 * dpr, baseY - gopH * 0.4);
+    ctx.lineTo(baseX + 50 * dpr, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  // Golden Kalasham on Left Spire
-  ctx.fillStyle = C.brassMid;
-  ctx.beginPath();
-  ctx.arc(35 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Right Temple Tower (Tiered Shikhara)
-  ctx.fillStyle = 'rgba(14, 3, 28, 0.65)';
-  const rightX = W - 70 * dpr;
-  ctx.beginPath();
-  ctx.moveTo(rightX, baseY);
-  ctx.lineTo(rightX, baseY - gopH * 0.4);
-  ctx.lineTo(rightX + 8 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(rightX + 8 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(rightX + 16 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(rightX + 25 * dpr, baseY - gopH);
-  ctx.lineTo(rightX + 34 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(rightX + 42 * dpr, baseY - gopH * 0.7);
-  ctx.lineTo(rightX + 42 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(rightX + 50 * dpr, baseY - gopH * 0.4);
-  ctx.lineTo(rightX + 50 * dpr, baseY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // Golden Kalasham on Right Spire
-  ctx.fillStyle = C.brassMid;
-  ctx.beginPath();
-  ctx.arc(rightX + 25 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
-  ctx.fill();
-
+    // Golden Kalasham on Spire
+    ctx.fillStyle = C.brassMid;
+    ctx.beginPath();
+    ctx.arc(baseX + 25 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(14, 3, 28, 0.65)'; // restore color for next
+  }
   ctx.restore();
 }
 
@@ -748,7 +767,7 @@ function drawMandala(dt) {
     ctx.save();
     ctx.rotate(g * (Math.PI / 2));
 
-    // Flanking Stone/Brass Gateway Pillars
+    // Flanking Stone/Brass Gateway Pillars (Intricate Vector Carvings)
     ctx.fillStyle = C.brassMid;
     ctx.strokeStyle = C.brassDark;
     ctx.lineWidth = 1 * dpr;
@@ -758,19 +777,40 @@ function drawMandala(dt) {
     const pillW = 6 * dpr;
     const pillH = pillY1 - pillY2;
 
-    // Left pillar
-    ctx.fillRect(-pillX - pillW / 2, pillY2, pillW, pillH);
-    ctx.strokeRect(-pillX - pillW / 2, pillY2, pillW, pillH);
-    // Right pillar
-    ctx.fillRect(pillX - pillW / 2, pillY2, pillW, pillH);
-    ctx.strokeRect(pillX - pillW / 2, pillY2, pillW, pillH);
+    // Helper to draw an ornate pillar
+    const drawPillar = (x, y, w, h) => {
+      // Base
+      ctx.fillRect(x - w*0.8, y + h - w, w*1.6, w);
+      ctx.strokeRect(x - w*0.8, y + h - w, w*1.6, w);
+      // Shaft (fluted)
+      ctx.fillRect(x - w/2, y + w, w, h - w*2);
+      ctx.strokeRect(x - w/2, y + w, w, h - w*2);
+      ctx.beginPath();
+      ctx.moveTo(x - w*0.2, y + w); ctx.lineTo(x - w*0.2, y + h - w);
+      ctx.moveTo(x + w*0.2, y + w); ctx.lineTo(x + w*0.2, y + h - w);
+      ctx.stroke();
+      // Capital (Yali/Lotus carved block)
+      ctx.fillRect(x - w, y, w*2, w*1.2);
+      ctx.strokeRect(x - w, y, w*2, w*1.2);
+      ctx.beginPath();
+      ctx.arc(x, y + w*0.6, w*0.5, 0, Math.PI*2);
+      ctx.stroke();
+    };
 
-    // Torana arch beam
+    // Left pillar
+    drawPillar(-pillX, pillY2, pillW, pillH);
+    // Right pillar
+    drawPillar(pillX, pillY2, pillW, pillH);
+
+    // Makara Torana arch beam (Scalloped ornate arch)
     ctx.fillStyle = C.gold;
     ctx.beginPath();
     ctx.moveTo(-pillX - 6 * dpr, pillY2);
-    ctx.lineTo(pillX + 6 * dpr, pillY2);
-    ctx.lineTo(0, pillY2 - 10 * dpr);
+    ctx.quadraticCurveTo(-pillX/2, pillY2 - 12 * dpr, 0, pillY2 - 18 * dpr);
+    ctx.quadraticCurveTo(pillX/2, pillY2 - 12 * dpr, pillX + 6 * dpr, pillY2);
+    ctx.lineTo(pillX - 4 * dpr, pillY2);
+    ctx.quadraticCurveTo(pillX/2, pillY2 - 10 * dpr, 0, pillY2 - 14 * dpr);
+    ctx.quadraticCurveTo(-pillX/2, pillY2 - 10 * dpr, -pillX + 4 * dpr, pillY2);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -1042,6 +1082,20 @@ const OBS_CONFIG = {
     hp: 1,
     points: 20,
     radius: 15
+  },
+  BOSS: {
+    name: 'MAHAVIGHNA',
+    baseSpeed: 40,
+    hp: 1, // Special logic for boss hp
+    points: 1000,
+    radius: 40
+  },
+  ORB: {
+    name: 'HEAVY ORB',
+    baseSpeed: 80,
+    hp: 1,
+    points: 30,
+    radius: 12
   }
 };
 
@@ -1050,6 +1104,34 @@ function spawnObstacle() {
   if (wave >= 2) pool.push('THORN');
   if (wave >= 4) pool.push('STONE');
   if (wave >= 6) pool.push('SWARM');
+
+  // Wave 10 is the Boss Fight
+  if (wave === 10) {
+    if (waveObsSpawned === 0) {
+      // Spawn Boss
+      const angle = Math.random() * Math.PI * 2;
+      const dist = W * 0.9;
+      obstacles.push({
+        type: 'BOSS',
+        x: cx + Math.cos(angle) * dist,
+        y: cy + Math.sin(angle) * dist,
+        vx: 0,
+        vy: 0,
+        hp: 10, // Boss needs 10 reflected orbs
+        rot: 0,
+        rotSpeed: 1.5,
+        animTime: 0,
+        radius: OBS_TYPES['BOSS'].radius * dpr,
+        points: OBS_TYPES['BOSS'].points,
+        angle: angle,
+        shootTimer: 2.0
+      });
+      // Set a fake high count so it doesn't trigger wave end immediately
+      waveObsCount = 999;
+    }
+    // Spawn occasional wisps to keep player busy
+    pool = ['WISP'];
+  }
 
   const type = pool[Math.floor(Math.random() * pool.length)];
   const cfg = OBS_CONFIG[type];
@@ -1247,7 +1329,7 @@ function drawObstacles() {
         const px = Math.cos(a) * p.radius;
         const py = Math.sin(a) * p.radius;
         ctx.beginPath();
-        ctx.rect(px - p.size / 2, py - p.size / 2, p.size, p.size); // Pixel art square particles
+        ctx.arc(px, py, p.size / 2, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.shadowBlur = 0;
@@ -1755,12 +1837,17 @@ function drawParticles() {
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
       ctx.beginPath();
-      ctx.ellipse(0, 0, p.size * 0.45, p.size, 0, 0, Math.PI * 2);
+      // Smooth curvy petal shape
+      ctx.moveTo(0, p.size * 0.8);
+      ctx.quadraticCurveTo(p.size*0.7, p.size*0.3, 0, -p.size*0.8);
+      ctx.quadraticCurveTo(-p.size*0.7, p.size*0.3, 0, p.size * 0.8);
       ctx.fill();
       ctx.restore();
     } else {
-      // 32-bit pixel-art chunky square spark
-      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      // Smooth glowing circle spark
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
@@ -1870,6 +1957,8 @@ function destroyObstacle(idx, isAuto = false) {
     addPopup(o.x, o.y - 40 * dpr, 'CLOSE SAVE! +35', '#FFFFFF', 16);
     closeSaveRings.push({ x: o.x, y: o.y, r: 10 * dpr, maxR: 75 * dpr, life: 0.45, maxLife: 0.45 });
     triggerShake(5 * dpr, 0.25);
+    aura = Math.min(maxAura, aura + 15);
+    updateHUDAura();
   } else {
     sfxDestroy(multiplier);
   }
@@ -1992,6 +2081,20 @@ function updateHUDScore() {
   }
 }
 
+function updateHUDAura() {
+  if (!uiAuraMeterFill || !uiAuraMeterText) return;
+  const pct = Math.min(100, Math.max(0, (aura / maxAura) * 100));
+  uiAuraMeterFill.style.width = `${pct}%`;
+  uiAuraMeterText.textContent = `AURA (${Math.floor(pct)}%)`;
+  
+  if (pct >= 100) {
+    uiAuraMeterFill.classList.add('full');
+    uiAuraMeterText.textContent = `MAHA-AARTI READY!`;
+  } else {
+    uiAuraMeterFill.classList.remove('full');
+  }
+}
+
 function updateHUDCombo() {
   if (!uiComboBadge || !uiComboText) return;
   if (combo >= 2) {
@@ -2046,6 +2149,7 @@ function startGame() {
   flashAlpha = 0;
 
   updateHUDScore();
+  updateHUDAura();
   updateDiyasHUD();
 
   // Hide Title Screen & Game Over Screen, show HUD
@@ -2100,12 +2204,37 @@ function gameOver() {
   if (uiGameOverScreen) uiGameOverScreen.style.display = 'flex';
 }
 
-// --- Player Input Handling ---
-function handlePlayerTap(clientX, clientY) {
-  initAudio();
-  const tapX = clientX * dpr;
-  const tapY = clientY * dpr;
+let pointerActive = false;
+let pointerStartX = 0;
+let pointerStartY = 0;
+let pointerCurrentX = 0;
+let pointerCurrentY = 0;
+let swipeTrail = [];
 
+function triggerMahaAarti() {
+  aura = 0;
+  updateHUDAura();
+  sfxWaveComplete(); // Reuse satisfying sound
+  triggerShake(15 * dpr, 0.8);
+
+  // Massive visual burst at center
+  emitBlessingParticles(cx, cy, 100, C.gold, true);
+  closeSaveRings.push({ x: cx, y: cy, r: 20 * dpr, maxR: W * 1.5, life: 1.0, maxLife: 1.0 });
+
+  // Destroy all obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    score += o.points * 10; // Massive bonus
+    emitBlessingParticles(o.x, o.y, 15, C.gold);
+    obstacles.splice(i, 1);
+  }
+  updateHUDScore();
+  addPopup(cx, cy - mandalaR * 2, 'MAHA-AARTI!', C.gold, 32);
+}
+
+// --- Player Input Handling ---
+function handlePlayerTap(tapX, tapY) {
+  initAudio();
   if (state !== STATE.PLAYING) return;
 
   // 1. Check Power-up collection first
@@ -2119,11 +2248,19 @@ function handlePlayerTap(clientX, clientY) {
     }
   }
 
-  // 2. Check Obstacles (target closest to tap)
+  // 1.5 Check for Maha-Aarti Trigger (tap center when aura is full)
+  const distToCenter = Math.hypot(tapX - cx, tapY - cy);
+  if (distToCenter < mandalaR && aura >= maxAura) {
+    triggerMahaAarti();
+    return;
+  }
+
+  // 2. Check Obstacles (target closest to tap) - ignore STONE on tap
   let closestIdx = -1;
   let closestDist = Infinity;
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
+    if (o.type === OBS_TYPES.STONE) continue; // Stones require swipe
     const dist = Math.hypot(tapX - o.x, tapY - o.y);
     if (dist < o.radius + tapR && dist < closestDist) {
       closestDist = dist;
@@ -2145,16 +2282,76 @@ function handlePlayerTap(clientX, clientY) {
   }
 }
 
+function handlePlayerSwipe(startX, startY, endX, endY) {
+  if (state !== STATE.PLAYING) return;
+  // Check if swipe crossed any STONE obstacle or ORB
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = obstacles[i];
+    if (o.type === 'STONE' || o.type === 'ORB') {
+      const dist = distToSegment(o.x, o.y, startX, startY, endX, endY);
+      if (dist < o.radius * 1.5) {
+        if (o.type === 'ORB' && !o.isDeflected) {
+          // Deflect orb towards boss
+          let boss = obstacles.find(obs => obs.type === 'BOSS');
+          if (boss) {
+            o.isDeflected = true;
+            const targetDist = Math.hypot(boss.x - o.x, boss.y - o.y);
+            o.vx = ((boss.x - o.x) / targetDist) * OBS_TYPES['ORB'].baseSpeed * 2.5; // Fast return
+            o.vy = ((boss.y - o.y) / targetDist) * OBS_TYPES['ORB'].baseSpeed * 2.5;
+            emitBlessingParticles(o.x, o.y, 10, C.gold);
+            addPopup(o.x, o.y, 'DEFLECTED!', C.gold, 20);
+            return;
+          }
+        } else if (o.type === 'STONE') {
+          destroyObstacle(i);
+          return;
+        }
+      }
+    }
+  }
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+  if (l2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+}
+
 // Canvas & Window Input Listeners
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  handlePlayerTap(e.clientX, e.clientY);
+  pointerActive = true;
+  pointerStartX = e.clientX * dpr;
+  pointerStartY = e.clientY * dpr;
+  pointerCurrentX = pointerStartX;
+  pointerCurrentY = pointerStartY;
+  swipeTrail = [{x: pointerStartX, y: pointerStartY}];
+  handlePlayerTap(pointerStartX, pointerStartY);
 }, { passive: false });
 
-window.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('button') || e.target.closest('.overlay-screen')) return;
-  handlePlayerTap(e.clientX, e.clientY);
+window.addEventListener('pointermove', (e) => {
+  if (!pointerActive) return;
+  pointerCurrentX = e.clientX * dpr;
+  pointerCurrentY = e.clientY * dpr;
+  swipeTrail.push({x: pointerCurrentX, y: pointerCurrentY});
+  if (swipeTrail.length > 10) swipeTrail.shift();
 });
+
+window.addEventListener('pointerup', (e) => {
+  if (!pointerActive) return;
+  pointerActive = false;
+  const endX = e.clientX * dpr;
+  const endY = e.clientY * dpr;
+  const dist = Math.hypot(endX - pointerStartX, endY - pointerStartY);
+  if (dist > 30 * dpr) {
+    handlePlayerSwipe(pointerStartX, pointerStartY, endX, endY);
+  }
+  swipeTrail = [];
+});
+
+
 
 // DOM Button Listeners
 if (uiBtnPlay) {
@@ -2240,8 +2437,59 @@ function gameLoop(timestamp) {
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i];
       const speedMult = slowActive > 0 ? 0.45 : 1.0;
-      o.x += o.vx * speedMult * dt;
-      o.y += o.vy * speedMult * dt;
+      
+      if (o.type === 'BOSS') {
+        // Orbit around the center
+        o.angle += (0.5 * speedMult) * dt;
+        const dist = W * 0.9;
+        o.x = cx + Math.cos(o.angle) * dist;
+        o.y = cy + Math.sin(o.angle) * dist;
+        
+        // Shoot heavy orbs
+        o.shootTimer -= dt;
+        if (o.shootTimer <= 0) {
+          o.shootTimer = 2.0 + Math.random() * 2.0;
+          const targetDist = Math.hypot(cx - o.x, cy - o.y);
+          obstacles.push({
+            type: 'ORB',
+            x: o.x, y: o.y,
+            vx: ((cx - o.x) / targetDist) * OBS_TYPES['ORB'].baseSpeed,
+            vy: ((cy - o.y) / targetDist) * OBS_TYPES['ORB'].baseSpeed,
+            hp: OBS_TYPES['ORB'].hp, maxHp: OBS_TYPES['ORB'].hp,
+            points: OBS_TYPES['ORB'].points,
+            rot: 0, rotSpeed: 5, animTime: 0,
+            radius: OBS_TYPES['ORB'].radius * dpr,
+            trail: [], swarmOffsets: []
+          });
+        }
+      } else if (o.type === 'ORB') {
+        o.x += o.vx * speedMult * dt;
+        o.y += o.vy * speedMult * dt;
+        if (o.isDeflected) {
+           let boss = obstacles.find(obs => obs.type === 'BOSS');
+           if (boss && Math.hypot(boss.x - o.x, boss.y - o.y) < boss.radius) {
+              boss.hp--;
+              emitBlessingParticles(boss.x, boss.y, 30, C.gold);
+              triggerShake(10 * dpr, 0.4);
+              sfxCloseSave();
+              obstacles.splice(i, 1);
+              if (boss.hp <= 0) {
+                 triggerMahaAarti();
+                 state = STATE.VICTORY;
+                 if (uiGameOverScreen) {
+                   uiGameOverScreen.style.display = 'flex';
+                   uiGameOverScreen.querySelector('h1').textContent = 'VICTORY';
+                   const p = uiGameOverScreen.querySelector('p');
+                   if (p) p.innerHTML = `The Eclipse is Broken<br>Score: ${score.toLocaleString()}`;
+                 }
+              }
+              continue;
+           }
+        }
+      } else {
+        o.x += o.vx * speedMult * dt;
+        o.y += o.vy * speedMult * dt;
+      }
 
       // Thorn Cluster mild erratic trajectory sway
       if (o.type === 'THORN') {
@@ -2273,7 +2521,7 @@ function gameLoop(timestamp) {
 
       // Check if vighna reached inner sacred boundary
       const distToCenter = Math.hypot(o.x - cx, o.y - cy);
-      if (distToCenter < mandalaR * 1.15) {
+      if (distToCenter < mandalaR * 1.15 && o.type !== 'BOSS') {
         // Miss! Sacred boundary breached, 1 diya blessing lost
         obstacles.splice(i, 1);
         blessings--;
@@ -2305,16 +2553,75 @@ function gameLoop(timestamp) {
     drawParticles();
     drawPopups();
 
-    // Red screen flash on breach
+    // The Eclipse (Dark Mode) Logic - Waves 7-9
+    if (wave >= 7 && wave <= 9) {
+      // Manage eclipse alpha fade in/out
+      if (eclipseAlpha < 0.95) eclipseAlpha += dt * 0.5;
+      
+      // Manage lightning flashes
+      eclipseFlashTimer -= dt;
+      if (eclipseFlashTimer <= 0) {
+        if (Math.random() < 0.3) sfxTapBlessing(); // Hacky thunder sound
+        eclipseFlashTimer = 2.0 + Math.random() * 4.0; // Flash every 2-6 seconds
+        flashAlpha = 0.8; // Use existing flashAlpha for the lightning effect (white instead of red)
+        isLightning = true;
+      }
+
+      ctx.save();
+      // Only draw darkness if not lightning
+      if (flashAlpha <= 0 || typeof isLightning === 'undefined' || !isLightning) {
+        const eclipseGrad = ctx.createRadialGradient(cx, cy, mandalaR * 1.5, cx, cy, W);
+        eclipseGrad.addColorStop(0, `rgba(5, 0, 15, 0)`);
+        eclipseGrad.addColorStop(0.3, `rgba(5, 0, 15, ${eclipseAlpha * 0.8})`);
+        eclipseGrad.addColorStop(1, `rgba(5, 0, 15, ${eclipseAlpha})`);
+        ctx.fillStyle = eclipseGrad;
+        ctx.fillRect(-W, -H, W * 3, H * 3);
+      } else {
+        // Lightning flash
+        ctx.fillStyle = `rgba(255, 255, 240, ${flashAlpha})`;
+        ctx.fillRect(-W, -H, W * 3, H * 3);
+      }
+      ctx.restore();
+    } else {
+      eclipseAlpha = 0; // reset
+    }
+
+    // Red screen flash on breach (or lightning fade)
     if (flashAlpha > 0) {
-      ctx.fillStyle = `rgba(198, 40, 40, ${flashAlpha})`;
-      ctx.fillRect(-W, -H, W * 3, H * 3);
-      flashAlpha = Math.max(0, flashAlpha - dt * 2.5);
+      if (!(wave >= 7 && wave <= 9 && typeof isLightning !== 'undefined' && isLightning)) {
+        ctx.fillStyle = `rgba(198, 40, 40, ${flashAlpha})`;
+        ctx.fillRect(-W, -H, W * 3, H * 3);
+      }
+      flashAlpha = Math.max(0, flashAlpha - dt * ((typeof isLightning !== 'undefined' && isLightning) ? 4.0 : 2.5));
+      if (flashAlpha <= 0 && typeof isLightning !== 'undefined') {
+        isLightning = false; // Reset lightning flag
+      }
     }
 
     // Wave Transition delay
     if (state === STATE.WAVE_TRANS) {
       transTimer -= dt;
+      const transAlpha = Math.sin((transTimer / 2.5) * Math.PI); // transTimer starts at 2.5
+      
+      // Soft gradient wave shift banner
+      if (transAlpha > 0) {
+        ctx.save();
+        const waveGrad = ctx.createLinearGradient(0, cy - 80*dpr, 0, cy + 80*dpr);
+        waveGrad.addColorStop(0, 'rgba(14, 3, 28, 0)');
+        waveGrad.addColorStop(0.5, `rgba(40, 5, 80, ${transAlpha * 0.85})`);
+        waveGrad.addColorStop(1, 'rgba(14, 3, 28, 0)');
+        ctx.fillStyle = waveGrad;
+        ctx.fillRect(0, cy - 100*dpr, W, 200*dpr);
+        
+        ctx.fillStyle = `rgba(255, 215, 0, ${transAlpha})`;
+        ctx.font = `bold ${42*dpr}px "Cinzel Decorative", serif`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 10 * dpr;
+        ctx.fillText(`WAVE ${toRoman(wave + 1)}`, cx, cy + 15*dpr);
+        ctx.restore();
+      }
+
       if (transTimer <= 0) {
         startWave();
       }
@@ -2324,6 +2631,23 @@ function gameLoop(timestamp) {
   } else if (state === STATE.TITLE || state === STATE.GAME_OVER) {
     drawParticles();
     drawPopups();
+  }
+
+  // Draw Swipe Trail
+  if (swipeTrail.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(swipeTrail[0].x, swipeTrail[0].y);
+    for (let i = 1; i < swipeTrail.length; i++) {
+      ctx.lineTo(swipeTrail[i].x, swipeTrail[i].y);
+    }
+    ctx.strokeStyle = '#FFD700'; // Gold
+    ctx.lineWidth = 4 * dpr;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 10 * dpr;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   ctx.restore();
