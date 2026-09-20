@@ -1,0 +1,1767 @@
+// ============================================================
+// VIGHNAHARTA — The Obstacle Breaker
+// Traditional Indian Devotional Pixel-Art Arcade Engine
+// गणेश चतुर्थी महोत्सव
+// ============================================================
+
+(() => {
+'use strict';
+
+// --- Canvas & DPR Setup ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, cx = 0, cy = 0, dpr = 1;
+let mandalaR = 0, spawnR = 0, tapR = 0;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = canvas.width = window.innerWidth * dpr;
+  H = canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  cx = W / 2;
+  cy = H / 2;
+  // Sacred centre mandala radius scales nicely with screen size
+  mandalaR = Math.max(65 * dpr, Math.min(W, H) * 0.115);
+  spawnR = Math.hypot(W, H) / 2 + 70 * dpr;
+  tapR = Math.max(38 * dpr, 42);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- Traditional Devotional Palette ---
+const C = {
+  saffron: '#FF6B00',
+  gold: '#FFD700',
+  goldLight: '#FFF59D',
+  brassMid: '#D4AF37',
+  brassDark: '#8C6314',
+  marigold: '#FFC107',
+  vermillion: '#C62828',
+  cream: '#FFF8E1',
+  night: '#1A0533',
+  purple: '#4A148C',
+  vighnaDark: '#2D0A4E',
+  vighnaCore: '#150024',
+  thornGreen: '#2E7D32',
+  thornDark: '#1B4D20',
+  diyaAmber: '#FF8F00',
+  stoneGray: '#5D5D63',
+  stoneDark: '#2D2D32',
+  stoneHighlight: '#B0B0B8'
+};
+
+// --- Game State System ---
+const STATE = { TITLE: 0, PLAYING: 1, WAVE_TRANS: 2, GAME_OVER: 3 };
+let state = STATE.TITLE;
+
+let score = 0;
+let bestScore = parseInt(localStorage.getItem('vighnaharta_best') || '0', 10);
+let blessings = 5;
+let wave = 1;
+let combo = 0;
+let comboTimer = 0;
+let bestCombo = 0;
+let obstaclesCleared = 0;
+let waveMisses = 0;
+
+let waveObsCount = 8;
+let waveObsSpawned = 0;
+let spawnInterval = 1.8;
+let spawnTimer = 0;
+let transTimer = 0;
+let lastTime = 0;
+
+// Screen effects
+let flashAlpha = 0;
+let shakeX = 0, shakeY = 0, shakeTimer = 0, shakeIntensity = 0;
+let hitStopTimer = 0; // micro-pause (50-70ms) for impact feel
+let centrePulseTime = 0;
+
+// Collections
+let obstacles = [];
+let particles = [];
+let petals = []; // falling marigold petals
+let starDust = []; // ambient golden dust
+let blessingBolts = [];
+let powerups = [];
+let textPopups = [];
+let impactSeals = []; // expanding sacred yantras
+let closeSaveRings = [];
+
+// Power-up state
+let slowActive = 0;
+let autoActive = 0;
+let autoShootTimer = 0;
+let puTimer = 0;
+
+// --- Ganesha Sacred Center Asset ---
+const ganeshaImg = new Image();
+ganeshaImg.src = 'assets/ganesha.jpg';
+let imgLoaded = false;
+ganeshaImg.onload = () => { imgLoaded = true; };
+
+// --- Parashu & Sacred Seal Assets (from Design Sheet) ---
+const parashuImg = new Image();
+parashuImg.src = 'assets/parashu.png';
+let parashuLoaded = false;
+parashuImg.onload = () => { parashuLoaded = true; };
+
+const sealImg = new Image();
+sealImg.src = 'assets/sacred_seal.png';
+let sealLoaded = false;
+sealImg.onload = () => { sealLoaded = true; };
+
+// --- 8-Directional Ganesha Sprites (from User Design Sheet) ---
+const DIR_KEYS = ['up', 'up_right', 'right', 'down_right', 'down', 'down_left', 'left', 'up_left'];
+const ganeshaSprites = {};
+let spritesLoaded = 0;
+
+DIR_KEYS.forEach(key => {
+  const img = new Image();
+  img.src = `assets/sprites/ganesha_${key}.png`;
+  img.onload = () => { spritesLoaded++; };
+  ganeshaSprites[key] = img;
+});
+
+function getDirectionKey(angle) {
+  let a = (angle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  const sector = Math.floor(((a + Math.PI / 8) % (Math.PI * 2)) / (Math.PI / 4));
+  switch (sector) {
+    case 0: return 'right';
+    case 1: return 'down_right';
+    case 2: return 'down';
+    case 3: return 'down_left';
+    case 4: return 'left';
+    case 5: return 'up_left';
+    case 6: return 'up';
+    case 7: return 'up_right';
+    default: return 'down';
+  }
+}
+
+// Directional Ganesha Aiming & Attack Animation State (8-direction support)
+let currentDirection = 'down';
+let ganeshaAimAngle = Math.PI / 2; // Default facing down towards player
+let ganeshaTargetAngle = Math.PI / 2;
+let aimTimer = 0;
+let ganeshaAttackFlash = 0; // Weapon release charge flash
+
+// --- DOM UI References ---
+const uiHud = document.getElementById('hud');
+const uiTitleScreen = document.getElementById('titleScreen');
+const uiGameOverScreen = document.getElementById('gameOverScreen');
+const uiHudScore = document.getElementById('hudScore');
+const uiHudWaveText = document.getElementById('hudWaveText');
+const uiComboBadge = document.getElementById('comboBadge');
+const uiComboText = document.getElementById('comboText');
+const uiActivePowerups = document.getElementById('activePowerups');
+const uiTitleBestScore = document.getElementById('titleBestScore');
+const uiBtnPlay = document.getElementById('btnPlay');
+const uiBtnRestart = document.getElementById('btnRestart');
+const uiBtnAudioToggle = document.getElementById('btnAudioToggle');
+const uiAudioIcon = document.getElementById('audioIcon');
+const uiAudioStatusText = document.getElementById('audioStatusText');
+const uiGoScore = document.getElementById('goScore');
+const uiGoBest = document.getElementById('goBest');
+const uiGoWave = document.getElementById('goWave');
+const uiGoCleared = document.getElementById('goCleared');
+const uiGoCombo = document.getElementById('goCombo');
+const uiNewBestBanner = document.getElementById('newBestBanner');
+
+if (uiTitleBestScore) {
+  uiTitleBestScore.textContent = bestScore.toLocaleString();
+}
+
+// --- Procedural Temple Audio Engine (Web Audio API) ---
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+// Temple bell synthesizer (fundamental + bell overtone decay)
+function playTempleBell(freq, duration = 0.8, volume = 0.2) {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const now = audioCtx.currentTime;
+    
+    // Fundamental tone
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(freq, now);
+    gain1.gain.setValueAtTime(volume, now);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + duration);
+
+    // High overtone shimmer (metal resonance)
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(freq * 2.76, now);
+    gain2.gain.setValueAtTime(volume * 0.35, now);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + duration * 0.4);
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now);
+    osc2.stop(now + duration * 0.4);
+  } catch (err) {
+    // Audio safe fallback
+  }
+}
+
+// Indian classical Raga scale notes (Bilawal / Bhairav inspired)
+const RAGA_NOTES = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50]; // C5 to C6
+
+function sfxTapBlessing() {
+  playTempleBell(880, 0.25, 0.15);
+}
+
+function sfxDestroy(comboLevel) {
+  const noteIdx = Math.min(comboLevel, RAGA_NOTES.length - 1);
+  const freq = RAGA_NOTES[noteIdx];
+  playTempleBell(freq, 0.5, 0.22);
+}
+
+function sfxCloseSave() {
+  playTempleBell(1318.5, 1.2, 0.3); // High E6 ring
+  setTimeout(() => playTempleBell(1567.98, 0.9, 0.2), 60); // High G6 resonance
+}
+
+function sfxMiss() {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  } catch(e) {}
+}
+
+function sfxPowerup() {
+  playTempleBell(659.25, 0.3, 0.18);
+  setTimeout(() => playTempleBell(783.99, 0.35, 0.2), 70);
+  setTimeout(() => playTempleBell(1046.50, 0.6, 0.25), 140);
+}
+
+function sfxWaveComplete() {
+  playTempleBell(523.25, 0.8, 0.2);
+  setTimeout(() => playTempleBell(659.25, 0.8, 0.2), 100);
+  setTimeout(() => playTempleBell(783.99, 1.2, 0.25), 200);
+}
+
+function sfxGameOver() {
+  playTempleBell(523.25, 0.5, 0.2);
+  setTimeout(() => playTempleBell(440.00, 0.6, 0.2), 180);
+  setTimeout(() => playTempleBell(329.63, 1.0, 0.25), 380);
+}
+
+// --- Ambient Environment Particles ---
+function initAmbient() {
+  starDust = [];
+  petals = [];
+
+  // Floating temple golden dust
+  for (let i = 0; i < 45; i++) {
+    starDust.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 8 * dpr,
+      vy: -(12 + Math.random() * 22) * dpr,
+      size: (1.5 + Math.random() * 2.5) * dpr,
+      alpha: 0.2 + Math.random() * 0.5,
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Tumbling Marigold Petals
+  for (let i = 0; i < 18; i++) {
+    petals.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vy: (20 + Math.random() * 35) * dpr,
+      vx: (Math.random() - 0.5) * 15 * dpr,
+      angle: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 2,
+      w: (7 + Math.random() * 5) * dpr,
+      h: (12 + Math.random() * 7) * dpr,
+      color: Math.random() > 0.4 ? C.marigold : C.saffron,
+      alpha: 0.35 + Math.random() * 0.4
+    });
+  }
+}
+
+function updateAmbient(dt) {
+  // Update Golden Dust
+  for (let p of starDust) {
+    p.y += p.vy * dt;
+    p.x += p.vx * dt + Math.sin(p.pulse) * 0.4 * dpr;
+    p.pulse += dt * 2;
+    if (p.y < -10) {
+      p.y = H + 10;
+      p.x = Math.random() * W;
+    }
+  }
+
+  // Update Marigold Petals
+  for (let p of petals) {
+    p.y += p.vy * dt;
+    p.x += p.vx * dt + Math.sin(p.angle) * 10 * dt;
+    p.angle += p.vRot * dt;
+    if (p.y > H + 20) {
+      p.y = -20;
+      p.x = Math.random() * W;
+    }
+  }
+}
+
+function drawAmbient() {
+  // Floating Golden Dust
+  for (let p of starDust) {
+    const a = p.alpha * (0.8 + Math.sin(p.pulse) * 0.2);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.rect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); // Pixel art square dust
+    ctx.fill();
+  }
+
+  // Tumbling Marigold Petals
+  for (let p of petals) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    // Teardrop / oval petal silhouette
+    ctx.ellipse(0, 0, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Living Temple Night Background ---
+function drawBackground() {
+  // Deep indigo-to-purple radial night sky
+  const skyGrad = ctx.createRadialGradient(cx, cy, mandalaR * 0.8, cx, cy, spawnR);
+  skyGrad.addColorStop(0, '#310d54');
+  skyGrad.addColorStop(0.35, C.purple);
+  skyGrad.addColorStop(0.75, '#220842');
+  skyGrad.addColorStop(1, C.night);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Warm Golden radial glow behind the sacred centre
+  const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, mandalaR * 3.2);
+  coreGlow.addColorStop(0, 'rgba(255, 215, 0, 0.16)');
+  coreGlow.addColorStop(0.4, 'rgba(255, 107, 0, 0.08)');
+  coreGlow.addColorStop(1, 'rgba(255, 215, 0, 0)');
+  ctx.fillStyle = coreGlow;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle Temple Radial Rays (slow rotation)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(centrePulseTime * 0.04);
+  const numRays = 16;
+  ctx.fillStyle = 'rgba(255, 215, 0, 0.015)';
+  for (let i = 0; i < numRays; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    const a1 = (i / numRays) * Math.PI * 2;
+    const a2 = a1 + (Math.PI / numRays) * 0.5;
+    ctx.arc(0, 0, spawnR, a1, a2);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Subtle Sacred Geometry / Rangoli background watermark
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.04)';
+  ctx.lineWidth = 1 * dpr;
+  const numOuterPetals = 8;
+  const outerR = mandalaR * 2.8;
+  for (let i = 0; i < numOuterPetals; i++) {
+    const a = (i / numOuterPetals) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * outerR * 0.6, Math.sin(a) * outerR * 0.6, outerR * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// --- Central Sacred Mandala (8 Concentric Layers) ---
+function drawMandala(dt) {
+  centrePulseTime += dt;
+  const breath = 1 + Math.sin(centrePulseTime * 1.8) * 0.035;
+  const r = mandalaR * breath;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // LAYER 1: Soft Golden Divine Halo
+  const haloGrad = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 1.6);
+  haloGrad.addColorStop(0, 'rgba(255, 215, 0, 0.28)');
+  haloGrad.addColorStop(0.5, 'rgba(255, 143, 0, 0.12)');
+  haloGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+  ctx.fillStyle = haloGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // LAYER 8: Danger Threshold Ring (Alert halo when obstacles are near)
+  let closestDist = Infinity;
+  for (const o of obstacles) {
+    const d = Math.hypot(o.x - cx, o.y - cy);
+    if (d < closestDist) closestDist = d;
+  }
+  const dangerFactor = Math.max(0, 1 - (closestDist - r) / (mandalaR * 2.2));
+  if (dangerFactor > 0.05) {
+    ctx.strokeStyle = C.vermillion;
+    ctx.lineWidth = (2 + dangerFactor * 3) * dpr;
+    ctx.globalAlpha = dangerFactor * (0.4 + Math.sin(centrePulseTime * 10) * 0.25);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // LAYER 7: Outer Sacred Boundary Ring
+  ctx.strokeStyle = C.gold;
+  ctx.lineWidth = 2.5 * dpr;
+  ctx.shadowColor = C.gold;
+  ctx.shadowBlur = 14 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // LAYER 6: Diya & Dot Motifs Ring (24 golden sacred dots)
+  const dotCount = 24;
+  ctx.fillStyle = C.marigold;
+  for (let i = 0; i < dotCount; i++) {
+    const a = (i / dotCount) * Math.PI * 2;
+    const dotX = Math.cos(a) * (r * 1.15);
+    const dotY = Math.sin(a) * (r * 1.15);
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 2.2 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // LAYER 5: Ornamental Geometric Ring (Sawtooth / temple dentils)
+  ctx.strokeStyle = C.brassMid;
+  ctx.lineWidth = 1.8 * dpr;
+  ctx.beginPath();
+  const dentils = 36;
+  for (let i = 0; i <= dentils; i++) {
+    const a = (i / dentils) * Math.PI * 2;
+    const rad = i % 2 === 0 ? r * 1.08 : r * 1.02;
+    const dx = Math.cos(a) * rad;
+    const dy = Math.sin(a) * rad;
+    if (i === 0) ctx.moveTo(dx, dy);
+    else ctx.lineTo(dx, dy);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // LAYER 4: Rangoli Sacred Geometry (Kolam interlace)
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+  ctx.lineWidth = 1.5 * dpr;
+  const rangoliPetals = 8;
+  for (let i = 0; i < rangoliPetals; i++) {
+    ctx.save();
+    ctx.rotate((i / rangoliPetals) * Math.PI * 2 + centrePulseTime * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.6);
+    ctx.bezierCurveTo(r * 0.35, -r * 0.8, r * 0.35, -r * 1.0, 0, -r * 0.98);
+    ctx.bezierCurveTo(-r * 0.35, -r * 1.0, -r * 0.35, -r * 0.8, 0, -r * 0.6);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // LAYER 3: Sculpted Lotus-Petal Ring (16 traditional petals)
+  const lotusCount = 16;
+  for (let i = 0; i < lotusCount; i++) {
+    ctx.save();
+    ctx.rotate((i / lotusCount) * Math.PI * 2);
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 107, 0, 0.35)' : 'rgba(255, 193, 7, 0.35)';
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.72);
+    ctx.quadraticCurveTo(r * 0.22, -r * 0.85, 0, -r * 0.96);
+    ctx.quadraticCurveTo(-r * 0.22, -r * 0.85, 0, -r * 0.72);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // LAYER 2: Sacred Ganesha Centerpiece Frame
+  // Ornate circular brass medallion enclosing Ganesha
+  const innerMurtiR = r * 0.68;
+
+  // Brass Medallion Rim
+  ctx.strokeStyle = C.brassMid;
+  ctx.lineWidth = 4 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, 0, innerMurtiR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Fine inner gold thread
+  ctx.strokeStyle = C.goldLight;
+  ctx.lineWidth = 1.2 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, 0, innerMurtiR - 2.5 * dpr, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw Lord Ganesha Respectful Seated Artwork (with 8-directional sprites & breathing)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, innerMurtiR - 3.5 * dpr, 0, Math.PI * 2);
+  ctx.clip();
+
+  // Idle breathing vertical bob (matching Idle Animation in design sheet)
+  const idleBob = Math.sin(centrePulseTime * 2.8) * (2.4 * dpr);
+  ctx.translate(0, idleBob);
+
+  // Directional aim timer decrement
+  if (aimTimer > 0) {
+    aimTimer -= dt;
+    currentDirection = getDirectionKey(ganeshaAimAngle);
+  } else {
+    currentDirection = 'down'; // Return to calm front seated idle
+  }
+
+  // Draw active 8-directional Ganesha sprite from user design sheet
+  const activeSprite = ganeshaSprites[currentDirection];
+  if (activeSprite && activeSprite.complete && activeSprite.naturalWidth > 0) {
+    const spriteAspect = activeSprite.naturalWidth / activeSprite.naturalHeight;
+    const spriteH = innerMurtiR * 1.88;
+    const spriteW = spriteH * spriteAspect;
+    ctx.drawImage(activeSprite, -spriteW / 2, -spriteH / 2, spriteW, spriteH);
+  } else if (imgLoaded) {
+    const imgSize = innerMurtiR * 2.15;
+    ctx.drawImage(ganeshaImg, -imgSize / 2, -imgSize / 2, imgSize, imgSize);
+  } else {
+    // Fallback golden sacred Om
+    ctx.fillStyle = C.gold;
+    ctx.font = `bold ${innerMurtiR * 0.9}px "Tiro Devanagari Hindi", serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ॐ', 0, 0);
+  }
+
+  // Attack Release Flash at Ganesha's weapon hand
+  if (ganeshaAttackFlash > 0) {
+    ctx.fillStyle = `rgba(255, 235, 59, ${ganeshaAttackFlash * 0.75})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, innerMurtiR * 0.7 * ganeshaAttackFlash, 0, Math.PI * 2);
+    ctx.fill();
+    ganeshaAttackFlash = Math.max(0, ganeshaAttackFlash - dt * 4);
+  }
+
+  // Warm golden temple wash overlay for visual cohesion
+  ctx.fillStyle = 'rgba(255, 215, 0, 0.06)';
+  ctx.fillRect(-innerMurtiR, -innerMurtiR, innerMurtiR * 2, innerMurtiR * 2);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// --- Obstacle Type Definitions & Behaviors ---
+const OBS_CONFIG = {
+  WISP: {
+    name: 'SHADOW WISP',
+    baseSpeed: 52,
+    hp: 1,
+    points: 10,
+    radius: 16
+  },
+  THORN: {
+    name: 'THORN CLUSTER',
+    baseSpeed: 68,
+    hp: 1,
+    points: 15,
+    radius: 17
+  },
+  STONE: {
+    name: 'STONE BLOCK',
+    baseSpeed: 42,
+    hp: 2,
+    points: 25,
+    radius: 21
+  },
+  SWARM: {
+    name: 'DARK SWARM',
+    baseSpeed: 82,
+    hp: 1,
+    points: 20,
+    radius: 15
+  }
+};
+
+function spawnObstacle() {
+  let pool = ['WISP'];
+  if (wave >= 2) pool.push('THORN');
+  if (wave >= 4) pool.push('STONE');
+  if (wave >= 6) pool.push('SWARM');
+
+  const type = pool[Math.floor(Math.random() * pool.length)];
+  const cfg = OBS_CONFIG[type];
+
+  // Spawn around outer circle perimeter
+  const angle = Math.random() * Math.PI * 2;
+  const x = cx + Math.cos(angle) * spawnR;
+  const y = cy + Math.sin(angle) * spawnR;
+
+  // Aim toward center with slight natural drift
+  const dx = cx - x;
+  const dy = cy - y;
+  const dist = Math.hypot(dx, dy);
+  const speed = (cfg.baseSpeed + wave * 7) * dpr;
+
+  const obs = {
+    x, y,
+    vx: (dx / dist) * speed,
+    vy: (dy / dist) * speed,
+    type,
+    radius: cfg.radius * dpr,
+    hp: cfg.hp,
+    maxHp: cfg.hp,
+    points: cfg.points,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 2,
+    animTime: Math.random() * 10,
+    trail: [],
+    // For Dark Swarm sub-particles
+    swarmOffsets: []
+  };
+
+  if (type === 'SWARM') {
+    for (let i = 0; i < 14; i++) {
+      obs.swarmOffsets.push({
+        radius: (6 + Math.random() * 10) * dpr,
+        angle: (i / 14) * Math.PI * 2,
+        speed: 2 + Math.random() * 2.5,
+        size: (2.2 + Math.random() * 1.8) * dpr
+      });
+    }
+  }
+
+  obstacles.push(obs);
+}
+
+// --- Obstacle Rendering Pipelines ---
+function drawObstacles() {
+  for (const o of obstacles) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+
+    // 1. SHADOW WISP (Dark swirling smoke orb, irregular silhouette)
+    if (o.type === 'WISP') {
+      const pulse = 1 + Math.sin(o.animTime * 4) * 0.12;
+      const r = o.radius * pulse;
+
+      // Swirling smoke rings
+      ctx.strokeStyle = 'rgba(74, 20, 140, 0.4)';
+      ctx.lineWidth = 2 * dpr;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.25, o.rot, o.rot + Math.PI * 1.5);
+      ctx.stroke();
+
+      // Smoke body gradient
+      const wispGrad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+      wispGrad.addColorStop(0, '#6A1B9A');
+      wispGrad.addColorStop(0.6, C.vighnaDark);
+      wispGrad.addColorStop(1, C.vighnaCore);
+      ctx.fillStyle = wispGrad;
+      ctx.shadowColor = '#9C27B0';
+      ctx.shadowBlur = 10 * dpr;
+
+      // Irregular smoke blob
+      ctx.beginPath();
+      const points = 7;
+      for (let i = 0; i <= points; i++) {
+        const a = (i / points) * Math.PI * 2;
+        const offset = Math.sin(a * 3 + o.animTime * 5) * (3 * dpr);
+        const px = Math.cos(a) * (r + offset);
+        const py = Math.sin(a) * (r + offset);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Glowing dark core
+      ctx.fillStyle = '#E1BEE7';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.5 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // 2. THORN CLUSTER (Dark forest green organic seed + sharp thorns + gold vein cracks)
+    else if (o.type === 'THORN') {
+      const r = o.radius;
+      ctx.rotate(o.rot);
+
+      // Thorns radiating outward (6 sharp thorns)
+      ctx.fillStyle = C.thornDark;
+      ctx.strokeStyle = C.thornGreen;
+      ctx.lineWidth = 1.5 * dpr;
+      const thornCount = 6;
+      for (let i = 0; i < thornCount; i++) {
+        ctx.save();
+        ctx.rotate((i / thornCount) * Math.PI * 2);
+        ctx.beginPath();
+        ctx.moveTo(-4 * dpr, -r * 0.5);
+        ctx.lineTo(0, -r * 1.4);
+        ctx.lineTo(4 * dpr, -r * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Central dark seed core
+      ctx.fillStyle = '#112F15';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Subtle gold cracks in core
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.35, -r * 0.3);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(r * 0.4, -r * 0.1);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-r * 0.1, r * 0.4);
+      ctx.stroke();
+    }
+
+    // 3. STONE BLOCK (Ancient temple stone fragment + cracks + geometric engravings)
+    else if (o.type === 'STONE') {
+      const s = o.radius;
+      ctx.rotate(o.rot);
+
+      // Stone block body (octagonal chiseled block)
+      ctx.fillStyle = C.stoneDark;
+      ctx.strokeStyle = C.stoneGray;
+      ctx.lineWidth = 2 * dpr;
+      ctx.beginPath();
+      const cut = s * 0.35;
+      ctx.moveTo(-s + cut, -s);
+      ctx.lineTo(s - cut, -s);
+      ctx.lineTo(s, -s + cut);
+      ctx.lineTo(s, s - cut);
+      ctx.lineTo(s - cut, s);
+      ctx.lineTo(-s + cut, s);
+      ctx.lineTo(-s, s - cut);
+      ctx.lineTo(-s, -s + cut);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Carved Indian geometric engraving on surface
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+      ctx.lineWidth = 1 * dpr;
+      ctx.strokeRect(-s * 0.4, -s * 0.4, s * 0.8, s * 0.8);
+
+      // If damaged (1st hit): Deep glowing fissure cracks spread across stone
+      if (o.hp < o.maxHp) {
+        ctx.strokeStyle = C.gold;
+        ctx.lineWidth = 2 * dpr;
+        ctx.shadowColor = C.gold;
+        ctx.shadowBlur = 8 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.8, -s * 0.6);
+        ctx.lineTo(-s * 0.1, -s * 0.1);
+        ctx.lineTo(s * 0.2, s * 0.4);
+        ctx.lineTo(s * 0.8, s * 0.7);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // 4. DARK SWARM (14 tiny dark-violet ethereal orbs orbiting unstable core)
+    else if (o.type === 'SWARM') {
+      ctx.fillStyle = '#7B1FA2';
+      ctx.shadowColor = '#BA68C8';
+      ctx.shadowBlur = 6 * dpr;
+
+      // Draw each orbiting micro-particle
+      for (const p of o.swarmOffsets) {
+        const a = p.angle + o.animTime * p.speed;
+        const px = Math.cos(a) * p.radius;
+        const py = Math.sin(a) * p.radius;
+        ctx.beginPath();
+        ctx.rect(px - p.size / 2, py - p.size / 2, p.size, p.size); // Pixel art square particles
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // Unstable central dark nucleus
+      ctx.fillStyle = C.vighnaCore;
+      ctx.beginPath();
+      ctx.arc(0, 0, 4 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+// --- Power-ups (Traditional Offerings - NO EMOJIS!) ---
+const PU_CONFIG = [
+  { type: 'LOTUS', label: 'DIVINE SERENITY', desc: 'Time Slowed' },
+  { type: 'MODAK', label: 'MAHA PRASAD', desc: 'Obstacles Cleared' },
+  { type: 'DURVA', label: 'DIVINE WILL', desc: 'Auto Blessings' },
+  { type: 'DHOL', label: 'SACRED RESONANCE', desc: 'Shockwave Cleared' }
+];
+
+function trySpawnPowerup(dt) {
+  if (wave < 2) return;
+  puTimer += dt;
+  if (puTimer > 18 + Math.random() * 12) {
+    puTimer = 0;
+    const cfg = PU_CONFIG[Math.floor(Math.random() * PU_CONFIG.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const dist = mandalaR * 1.8 + Math.random() * mandalaR * 2.2;
+
+    powerups.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      type: cfg.type,
+      label: cfg.label,
+      desc: cfg.desc,
+      radius: 22 * dpr,
+      life: 9.0,
+      animTime: 0
+    });
+  }
+}
+
+function updatePowerups(dt) {
+  slowActive = Math.max(0, slowActive - dt);
+  autoActive = Math.max(0, autoActive - dt);
+
+  // Auto-bless divine will effect
+  if (autoActive > 0 && obstacles.length > 0) {
+    autoShootTimer += dt;
+    if (autoShootTimer >= 0.28) {
+      autoShootTimer = 0;
+      // Seek closest obstacle to center
+      let closestIdx = -1;
+      let minD = Infinity;
+      for (let i = 0; i < obstacles.length; i++) {
+        const d = Math.hypot(obstacles[i].x - cx, obstacles[i].y - cy);
+        if (d < minD) { minD = d; closestIdx = i; }
+      }
+      if (closestIdx >= 0) {
+        destroyObstacle(closestIdx, true);
+      }
+    }
+  }
+
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    const p = powerups[i];
+    p.life -= dt;
+    p.animTime += dt;
+    if (p.life <= 0) powerups.splice(i, 1);
+  }
+
+  updateActivePowerupDOM();
+}
+
+function updateActivePowerupDOM() {
+  if (!uiActivePowerups) return;
+  let html = '';
+  if (slowActive > 0) {
+    html += `<div class="powerup-pill" style="color: #F48FB1;"><span>🪷</span> SLOW (${slowActive.toFixed(1)}s)</div>`;
+  }
+  if (autoActive > 0) {
+    html += `<div class="powerup-pill" style="color: #81C784;"><span>🌿</span> AUTO BLESS (${autoActive.toFixed(1)}s)</div>`;
+  }
+  uiActivePowerups.innerHTML = html;
+}
+
+// Handcrafted SVG/Canvas Rendering of Traditional Offerings
+function drawPowerups() {
+  for (const p of powerups) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    const pulse = 1 + Math.sin(p.animTime * 4) * 0.12;
+    const r = p.radius * pulse;
+
+    // Sacred golden halo behind offering
+    const halo = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r * 1.5);
+    halo.addColorStop(0, 'rgba(255, 215, 0, 0.45)');
+    halo.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 1. LOTUS (Sacred pink & white tiered lotus blossom with gold center)
+    if (p.type === 'LOTUS') {
+      const petalsCount = 8;
+      for (let i = 0; i < petalsCount; i++) {
+        ctx.save();
+        ctx.rotate((i / petalsCount) * Math.PI * 2);
+        ctx.fillStyle = '#F8BBD0';
+        ctx.strokeStyle = '#F06292';
+        ctx.lineWidth = 1.2 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(r * 0.3, -r * 0.6, 0, -r * 0.9);
+        ctx.quadraticCurveTo(-r * 0.3, -r * 0.6, 0, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      // Golden central stamen
+      ctx.fillStyle = C.gold;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 2. MODAK (Sculpted golden sweet with visible ridges and sparkle)
+    else if (p.type === 'MODAK') {
+      // Golden modak teardrop with scalloped ridges
+      ctx.fillStyle = C.gold;
+      ctx.strokeStyle = C.brassMid;
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.95);
+      ctx.quadraticCurveTo(r * 0.8, -r * 0.1, r * 0.65, r * 0.75);
+      ctx.lineTo(-r * 0.65, r * 0.75);
+      ctx.quadraticCurveTo(-r * 0.8, -r * 0.1, 0, -r * 0.95);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Ridge lines
+      ctx.strokeStyle = '#FFE082';
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.95);
+      ctx.lineTo(0, r * 0.75);
+      ctx.moveTo(0, -r * 0.95);
+      ctx.quadraticCurveTo(r * 0.35, 0, r * 0.3, r * 0.75);
+      ctx.moveTo(0, -r * 0.95);
+      ctx.quadraticCurveTo(-r * 0.35, 0, -r * 0.3, r * 0.75);
+      ctx.stroke();
+    }
+
+    // 3. DURVA (Trio of sacred green grass blades tied in golden seal)
+    else if (p.type === 'DURVA') {
+      ctx.strokeStyle = '#4CAF50';
+      ctx.lineWidth = 3 * dpr;
+      ctx.lineCap = 'round';
+      // Blade 1 (left)
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.5);
+      ctx.quadraticCurveTo(-r * 0.6, 0, -r * 0.7, -r * 0.8);
+      ctx.stroke();
+      // Blade 2 (center)
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.5);
+      ctx.lineTo(0, -r * 0.95);
+      ctx.stroke();
+      // Blade 3 (right)
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.5);
+      ctx.quadraticCurveTo(r * 0.6, 0, r * 0.7, -r * 0.8);
+      ctx.stroke();
+      // Gold tie seal
+      ctx.fillStyle = C.gold;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.3, 4 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. DHOL (Traditional temple percussion drum with saffron cloth)
+    else if (p.type === 'DHOL') {
+      const dw = r * 1.3, dh = r * 0.8;
+      // Drum cylinder
+      ctx.fillStyle = '#8D6E63';
+      ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+      // Saffron ceremonial sash across drum
+      ctx.fillStyle = C.saffron;
+      ctx.fillRect(-dw / 4, -dh / 2, dw / 2, dh);
+      // Drum heads
+      ctx.fillStyle = C.cream;
+      ctx.strokeStyle = C.brassMid;
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath();
+      ctx.ellipse(-dw / 2, 0, 4 * dpr, dh / 2, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(dw / 2, 0, 4 * dpr, dh / 2, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+}
+
+function activatePowerup(pu) {
+  sfxPowerup();
+  score += 15;
+  addPopup(pu.x, pu.y - 30 * dpr, pu.label, C.gold, 18);
+  emitBlessingParticles(pu.x, pu.y, 25, C.gold);
+
+  switch (pu.type) {
+    case 'MODAK':
+      // Clear all active obstacles with golden shockwave
+      triggerShake(6 * dpr, 0.35);
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        emitBlessingParticles(obstacles[i].x, obstacles[i].y, 14, C.gold);
+        obstaclesCleared++;
+      }
+      obstacles = [];
+      closeSaveRings.push({ x: cx, y: cy, r: 0, maxR: spawnR, life: 0.6, maxLife: 0.6 });
+      break;
+
+    case 'LOTUS':
+      slowActive = 5.5;
+      break;
+
+    case 'DURVA':
+      autoActive = 4.0;
+      autoShootTimer = 0;
+      break;
+
+    case 'DHOL':
+      // Outer ring shockwave
+      triggerShake(8 * dpr, 0.4);
+      closeSaveRings.push({ x: cx, y: cy, r: 0, maxR: spawnR * 0.8, life: 0.5, maxLife: 0.5 });
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const d = Math.hypot(obstacles[i].x - cx, obstacles[i].y - cy);
+        if (d > mandalaR * 1.6) {
+          emitBlessingParticles(obstacles[i].x, obstacles[i].y, 12, C.saffron);
+          obstaclesCleared++;
+          obstacles.splice(i, 1);
+        }
+      }
+      break;
+  }
+}
+
+// --- Divine Weapon Projectiles: Golden Parashu & Sacred Thread ---
+function launchBlessing(targetX, targetY) {
+  // Ganesha rotates to face the direction of your tap/click (matching design sheet)
+  ganeshaAimAngle = Math.atan2(targetY - cy, targetX - cx);
+  currentDirection = getDirectionKey(ganeshaAimAngle);
+  aimTimer = 0.75; // Hold directional aiming pose
+  ganeshaAttackFlash = 1.0;
+
+  // Arc path with natural Bezier curve
+  const midX = (cx + targetX) / 2 + (Math.random() - 0.5) * 50 * dpr;
+  const midY = (cy + targetY) / 2 + (Math.random() - 0.5) * 50 * dpr;
+
+  blessingBolts.push({
+    x0: cx, y0: cy,
+    x1: midX, y1: midY,
+    x2: targetX, y2: targetY,
+    t: 0,
+    speed: 5.2, // Fast, punchy arcade flight time (~0.18s)
+    spin: 0,
+    trail: []
+  });
+}
+
+function updateBolts(dt) {
+  for (let i = blessingBolts.length - 1; i >= 0; i--) {
+    const b = blessingBolts[i];
+    b.t += dt * b.speed;
+    b.spin += dt * 25; // Rapid spinning golden battle-axe
+
+    const t = Math.min(1, b.t);
+    const bx = (1 - t) * (1 - t) * b.x0 + 2 * (1 - t) * t * b.x1 + t * t * b.x2;
+    const by = (1 - t) * (1 - t) * b.y0 + 2 * (1 - t) * t * b.y1 + t * t * b.y2;
+
+    b.trail.push({ x: bx, y: by, life: 0.22 });
+    if (b.trail.length > 10) b.trail.shift();
+
+    for (let j = b.trail.length - 1; j >= 0; j--) {
+      b.trail[j].life -= dt;
+      if (b.trail[j].life <= 0) b.trail.splice(j, 1);
+    }
+
+    // Emit spark particles along projectile trail
+    if (Math.random() > 0.4) {
+      particles.push({
+        x: bx + (Math.random() - 0.5) * 8 * dpr,
+        y: by + (Math.random() - 0.5) * 8 * dpr,
+        vx: (Math.random() - 0.5) * 20 * dpr,
+        vy: (Math.random() - 0.5) * 20 * dpr,
+        life: 0.25, maxLife: 0.25,
+        size: 3 * dpr,
+        color: C.gold,
+        isPetal: false,
+        rot: 0, vRot: 0
+      });
+    }
+
+    if (b.t >= 1) {
+      blessingBolts.splice(i, 1);
+    }
+  }
+}
+
+function drawBolts() {
+  for (const b of blessingBolts) {
+    const t = Math.min(1, b.t);
+
+    // Quadratic Bezier current tip
+    const bx = (1 - t) * (1 - t) * b.x0 + 2 * (1 - t) * t * b.x1 + t * t * b.x2;
+    const by = (1 - t) * (1 - t) * b.y0 + 2 * (1 - t) * t * b.y1 + t * t * b.y2;
+
+    // 1. Radiant Golden Curved Motion Trail (Step 3: Projectile Trail)
+    if (b.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(b.trail[0].x, b.trail[0].y);
+      for (let j = 1; j < b.trail.length; j++) {
+        ctx.lineTo(b.trail[j].x, b.trail[j].y);
+      }
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.45)';
+      ctx.lineWidth = 6 * dpr;
+      ctx.stroke();
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2 * dpr;
+      ctx.shadowColor = C.gold;
+      ctx.shadowBlur = 10 * dpr;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // 2. Flying Spinning Golden Parashu (Divine Axe)
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(b.spin);
+
+    // Golden sacred aura around the weapon
+    const axeHalo = ctx.createRadialGradient(0, 0, 3 * dpr, 0, 0, 20 * dpr);
+    axeHalo.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    axeHalo.addColorStop(0.35, 'rgba(255, 215, 0, 0.7)');
+    axeHalo.addColorStop(1, 'rgba(255, 143, 0, 0)');
+    ctx.fillStyle = axeHalo;
+    ctx.beginPath();
+    ctx.arc(0, 0, 20 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+
+    const axeSize = 34 * dpr;
+    if (parashuLoaded) {
+      ctx.drawImage(parashuImg, -axeSize / 2, -axeSize / 2, axeSize, axeSize);
+    } else {
+      // Procedural fallback double-axe
+      ctx.fillStyle = C.gold;
+      ctx.fillRect(-2 * dpr, -axeSize / 2, 4 * dpr, axeSize);
+      ctx.beginPath();
+      ctx.arc(-8 * dpr, -8 * dpr, 10 * dpr, -Math.PI / 2, Math.PI / 2);
+      ctx.arc(8 * dpr, -8 * dpr, 10 * dpr, Math.PI / 2, -Math.PI / 2, true);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// --- Multi-tier Particle Explosions & Sacred Seals ---
+function emitBlessingParticles(x, y, count, baseColor, isCloseSave = false) {
+  const palette = [C.gold, C.saffron, C.marigold, '#FFF8E1'];
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = (60 + Math.random() * (isCloseSave ? 200 : 130)) * dpr;
+    const isPetal = Math.random() > 0.55;
+
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      life: 0.55 + Math.random() * 0.4,
+      maxLife: 0.85,
+      size: (isPetal ? 7 : 4) * dpr,
+      color: palette[Math.floor(Math.random() * palette.length)],
+      isPetal,
+      rot: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 8
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.95;
+    p.vy *= 0.95;
+    p.rot += p.vRot * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update Expanding Sacred Seals (Impact Effect)
+  for (let i = impactSeals.length - 1; i >= 0; i--) {
+    const s = impactSeals[i];
+    s.r += 80 * dpr * dt;
+    s.life -= dt;
+    if (s.life <= 0) impactSeals.splice(i, 1);
+  }
+
+  // Update Close Save Expanding Shockwaves
+  for (let i = closeSaveRings.length - 1; i >= 0; i--) {
+    const r = closeSaveRings[i];
+    r.r += (r.maxR - r.r) * 8 * dt;
+    r.life -= dt;
+    if (r.life <= 0) closeSaveRings.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  // Sacred Expanding Seals (Step 4: Impact Effect)
+  for (const s of impactSeals) {
+    const alpha = Math.max(0, s.life / s.maxLife);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot);
+    ctx.globalAlpha = alpha;
+
+    if (sealLoaded) {
+      const sealSize = s.r * 2.2;
+      ctx.drawImage(sealImg, -sealSize / 2, -sealSize / 2, sealSize, sealSize);
+    } else {
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 2 * dpr;
+      ctx.shadowColor = C.gold;
+      ctx.shadowBlur = 12 * dpr;
+      ctx.beginPath();
+      ctx.arc(0, 0, s.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeRect(-s.r * 0.7, -s.r * 0.7, s.r * 1.4, s.r * 1.4);
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  // Close Save Expanding Rings
+  for (const r of closeSaveRings) {
+    const alpha = Math.max(0, r.life / r.maxLife);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 3 * dpr;
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = C.gold;
+    ctx.shadowBlur = 15 * dpr;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Pixel particles & Marigold petal fragments (Step 5: Dissolve)
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+
+    if (p.isPetal) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size * 0.45, p.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // 32-bit pixel-art chunky square spark
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Floating Text Popups ---
+function addPopup(x, y, text, color = C.gold, size = 16) {
+  textPopups.push({
+    x, y,
+    text,
+    color,
+    size: size * dpr,
+    life: 0.9,
+    maxLife: 0.9
+  });
+}
+
+function updatePopups(dt) {
+  for (let i = textPopups.length - 1; i >= 0; i--) {
+    const t = textPopups[i];
+    t.y -= 35 * dpr * dt;
+    t.life -= dt;
+    if (t.life <= 0) textPopups.splice(i, 1);
+  }
+}
+
+function drawPopups() {
+  for (const t of textPopups) {
+    const alpha = Math.max(0, t.life / t.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = t.color;
+    ctx.font = `bold ${t.size}px "Outfit", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 6 * dpr;
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Obstacle Destruction Handler ---
+function destroyObstacle(idx, isAuto = false) {
+  const o = obstacles[idx];
+  if (!o) return;
+
+  // Launch Divine Golden Energy Thread from center to obstacle
+  launchBlessing(o.x, o.y);
+
+  o.hp--;
+  if (o.hp > 0) {
+    // Stone block cracked on first hit
+    sfxDestroy(0);
+    emitBlessingParticles(o.x, o.y, 8, C.stoneHighlight);
+    addPopup(o.x, o.y - 15 * dpr, 'CRACK!', C.gold, 13);
+    return;
+  }
+
+  // Hit-Stop impact pause (55ms) for juicy arcade feel
+  hitStopTimer = 0.055;
+
+  // Impact Sacred Yantra Seal
+  impactSeals.push({
+    x: o.x, y: o.y,
+    r: 12 * dpr,
+    life: 0.35, maxLife: 0.35,
+    rot: Math.random() * Math.PI
+  });
+
+  // Calculate distance from center for CLOSE SAVE bonus
+  const distFromCenter = Math.hypot(o.x - cx, o.y - cy);
+  const isCloseSave = distFromCenter < (mandalaR * 1.55);
+
+  let pts = o.points;
+
+  // Combo system
+  combo++;
+  comboTimer = 1.6;
+  if (combo > bestCombo) bestCombo = combo;
+  const multiplier = Math.min(combo, 5);
+  pts *= multiplier;
+
+  if (isCloseSave) {
+    pts += 35;
+    sfxCloseSave();
+    addPopup(o.x, o.y - 40 * dpr, 'CLOSE SAVE! +35', '#FFFFFF', 16);
+    closeSaveRings.push({ x: o.x, y: o.y, r: 10 * dpr, maxR: 75 * dpr, life: 0.45, maxLife: 0.45 });
+    triggerShake(5 * dpr, 0.25);
+  } else {
+    sfxDestroy(multiplier);
+  }
+
+  score += pts;
+  obstaclesCleared++;
+
+  // Emit rich marigold + gold particle bursts
+  emitBlessingParticles(o.x, o.y, isCloseSave ? 32 : 18, C.gold, isCloseSave);
+  addPopup(o.x, o.y - 20 * dpr, `+${pts}`, C.gold, combo > 1 ? 19 : 14);
+
+  // Update DOM HUD Score & Combo
+  updateHUDScore();
+  updateHUDCombo();
+
+  obstacles.splice(idx, 1);
+}
+
+// --- Screen Shake System ---
+function triggerShake(intensity, dur) {
+  shakeIntensity = intensity;
+  shakeTimer = dur;
+}
+
+function updateShake(dt) {
+  if (shakeTimer > 0) {
+    shakeTimer -= dt;
+    shakeX = (Math.random() - 0.5) * 2 * shakeIntensity;
+    shakeY = (Math.random() - 0.5) * 2 * shakeIntensity;
+  } else {
+    shakeX = 0;
+    shakeY = 0;
+  }
+}
+
+// --- Wave Progression System ---
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+function toRoman(num) {
+  return ROMAN_NUMERALS[num - 1] || `${num}`;
+}
+
+function startWave() {
+  wave++;
+  spawnInterval = Math.max(0.45, 1.9 - wave * 0.14);
+  // Spawn first obstacle quickly (0.25s) so action starts immediately
+  spawnTimer = spawnInterval - 0.25;
+  waveObsCount = 8 + wave * 3;
+  waveObsSpawned = 0;
+  waveMisses = 0;
+  state = STATE.PLAYING;
+
+  if (uiHudWaveText) {
+    uiHudWaveText.textContent = `WAVE ${toRoman(wave)}`;
+  }
+}
+
+function checkWaveEnd() {
+  if (waveObsSpawned >= waveObsCount && obstacles.length === 0) {
+    sfxWaveComplete();
+    const bonus = waveMisses === 0 ? 250 : 50;
+    score += bonus;
+    updateHUDScore();
+
+    emitBlessingParticles(cx, cy, 35, C.gold);
+    if (waveMisses === 0) {
+      addPopup(cx, cy - mandalaR * 1.8, '✨ PERFECT WAVE! +250 ✨', C.gold, 22);
+    } else {
+      addPopup(cx, cy - mandalaR * 1.8, `WAVE ${toRoman(wave)} COMPLETE! +${bonus}`, C.marigold, 18);
+    }
+
+    state = STATE.WAVE_TRANS;
+    transTimer = 1.8;
+  }
+}
+
+// --- UI DOM Sync Handlers ---
+function updateHUDScore() {
+  if (uiHudScore) {
+    uiHudScore.textContent = score.toLocaleString();
+  }
+}
+
+function updateHUDCombo() {
+  if (!uiComboBadge || !uiComboText) return;
+  if (combo >= 2) {
+    uiComboBadge.classList.add('is-active');
+    uiComboText.textContent = `x${Math.min(combo, 5)} COMBO`;
+  } else {
+    uiComboBadge.classList.remove('is-active');
+  }
+}
+
+function updateDiyasHUD() {
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById(`diya-${i}`);
+    if (el) {
+      if (i < blessings) {
+        el.classList.remove('is-extinguished');
+      } else {
+        el.classList.add('is-extinguished');
+      }
+    }
+  }
+}
+
+// --- Game Loop Lifecycle ---
+function startGame() {
+  initAudio();
+  score = 0;
+  blessings = 5;
+  wave = 0;
+  combo = 0;
+  comboTimer = 0;
+  bestCombo = 0;
+  obstaclesCleared = 0;
+  waveMisses = 0;
+
+  obstacles = [];
+  particles = [];
+  powerups = [];
+  textPopups = [];
+  blessingBolts = [];
+  impactSeals = [];
+  closeSaveRings = [];
+
+  puTimer = 0;
+  slowActive = 0;
+  autoActive = 0;
+  flashAlpha = 0;
+
+  updateHUDScore();
+  updateDiyasHUD();
+
+  // Hide Title Screen & Game Over Screen, show HUD
+  if (uiTitleScreen) uiTitleScreen.style.display = 'none';
+  if (uiGameOverScreen) uiGameOverScreen.style.display = 'none';
+  if (uiHud) uiHud.style.display = 'flex';
+
+  startWave();
+}
+
+function gameOver() {
+  state = STATE.GAME_OVER;
+  sfxGameOver();
+
+  const isNewBest = score > bestScore;
+  if (isNewBest) {
+    bestScore = score;
+    localStorage.setItem('vighnaharta_best', `${bestScore}`);
+  }
+
+  // Populate Game Over screen stats
+  if (uiGoScore) uiGoScore.textContent = score.toLocaleString();
+  if (uiGoBest) uiGoBest.textContent = bestScore.toLocaleString();
+  if (uiGoWave) uiGoWave.textContent = toRoman(wave);
+  if (uiGoCleared) uiGoCleared.textContent = obstaclesCleared.toLocaleString();
+  if (uiGoCombo) uiGoCombo.textContent = `x${bestCombo}`;
+
+  if (uiNewBestBanner) {
+    uiNewBestBanner.style.display = isNewBest ? 'block' : 'none';
+  }
+
+  // Hide HUD, Show Game Over Screen
+  if (uiHud) uiHud.style.display = 'none';
+  if (uiGameOverScreen) uiGameOverScreen.style.display = 'flex';
+}
+
+// --- Player Input Handling ---
+function handlePlayerTap(clientX, clientY) {
+  initAudio();
+  const tapX = clientX * dpr;
+  const tapY = clientY * dpr;
+
+  if (state !== STATE.PLAYING) return;
+
+  // 1. Check Power-up collection first
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    const p = powerups[i];
+    const dist = Math.hypot(tapX - p.x, tapY - p.y);
+    if (dist < p.radius + tapR) {
+      activatePowerup(p);
+      powerups.splice(i, 1);
+      return;
+    }
+  }
+
+  // 2. Check Obstacles (target closest to tap)
+  let closestIdx = -1;
+  let closestDist = Infinity;
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = obstacles[i];
+    const dist = Math.hypot(tapX - o.x, tapY - o.y);
+    if (dist < o.radius + tapR && dist < closestDist) {
+      closestDist = dist;
+      closestIdx = i;
+    }
+  }
+
+  if (closestIdx >= 0) {
+    destroyObstacle(closestIdx);
+  } else {
+    // Sacred golden blessing ripple on empty tap
+    impactSeals.push({
+      x: tapX, y: tapY,
+      r: 6 * dpr,
+      life: 0.22, maxLife: 0.22,
+      rot: Math.random() * Math.PI
+    });
+    sfxTapBlessing();
+  }
+}
+
+// Canvas & Window Input Listeners
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handlePlayerTap(e.clientX, e.clientY);
+}, { passive: false });
+
+window.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button') || e.target.closest('.overlay-screen')) return;
+  handlePlayerTap(e.clientX, e.clientY);
+});
+
+// DOM Button Listeners
+if (uiBtnPlay) {
+  uiBtnPlay.addEventListener('click', () => {
+    startGame();
+  });
+}
+
+if (uiBtnRestart) {
+  uiBtnRestart.addEventListener('click', () => {
+    startGame();
+  });
+}
+
+if (uiBtnAudioToggle) {
+  uiBtnAudioToggle.addEventListener('click', () => {
+    initAudio();
+    soundEnabled = !soundEnabled;
+    if (uiAudioIcon) uiAudioIcon.textContent = soundEnabled ? '🔔' : '🔕';
+    if (uiAudioStatusText) uiAudioStatusText.textContent = soundEnabled ? 'BELLS: ON' : 'BELLS: OFF';
+  });
+}
+
+// --- Main 60FPS Game Loop ---
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  // Hit-stop micro freeze (impact pause)
+  if (hitStopTimer > 0) {
+    hitStopTimer -= dt;
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  // Ambient Environment Updates (Always running)
+  updateAmbient(dt);
+  updateParticles(dt);
+  updatePopups(dt);
+  updateBolts(dt);
+  updateShake(dt);
+
+  // Apply Screen Shake transform
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // Draw living background and ambient particles
+  drawBackground();
+  drawAmbient();
+
+  // Draw Central Sacred 8-Layer Mandala
+  drawMandala(dt);
+
+  if (state === STATE.PLAYING || state === STATE.WAVE_TRANS) {
+    // Combo timer decrement
+    if (comboTimer > 0) {
+      comboTimer -= dt;
+      if (comboTimer <= 0) {
+        combo = 0;
+        updateHUDCombo();
+      }
+    }
+
+    // Spawn obstacles
+    if (state === STATE.PLAYING) {
+      spawnTimer += dt;
+      const effectiveInterval = slowActive > 0 ? spawnInterval * 1.6 : spawnInterval;
+      if (spawnTimer >= effectiveInterval && waveObsSpawned < waveObsCount) {
+        spawnTimer = 0;
+        spawnObstacle();
+        waveObsSpawned++;
+      }
+
+      trySpawnPowerup(dt);
+    }
+
+    // Update Obstacles Movement & Miss Collisions
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      const speedMult = slowActive > 0 ? 0.45 : 1.0;
+      o.x += o.vx * speedMult * dt;
+      o.y += o.vy * speedMult * dt;
+      o.rot += o.rotSpeed * dt;
+      o.animTime += dt;
+
+      // Check if vighna reached inner sacred boundary
+      const distToCenter = Math.hypot(o.x - cx, o.y - cy);
+      if (distToCenter < mandalaR * 1.15) {
+        // Miss! Sacred boundary breached, 1 diya blessing lost
+        obstacles.splice(i, 1);
+        blessings--;
+        waveMisses++;
+        combo = 0;
+        updateHUDCombo();
+        updateDiyasHUD();
+
+        flashAlpha = 0.35;
+        sfxMiss();
+        emitBlessingParticles(o.x, o.y, 16, C.vermillion);
+        addPopup(o.x, o.y - 20 * dpr, 'BREACHED!', C.vermillion, 16);
+        triggerShake(6 * dpr, 0.3);
+
+        if (blessings <= 0) {
+          blessings = 0;
+          gameOver();
+          break;
+        }
+      }
+    }
+
+    updatePowerups(dt);
+
+    // Draw Entities
+    drawObstacles();
+    drawPowerups();
+    drawBolts();
+    drawParticles();
+    drawPopups();
+
+    // Red screen flash on breach
+    if (flashAlpha > 0) {
+      ctx.fillStyle = `rgba(198, 40, 40, ${flashAlpha})`;
+      ctx.fillRect(-W, -H, W * 3, H * 3);
+      flashAlpha = Math.max(0, flashAlpha - dt * 2.5);
+    }
+
+    // Wave Transition delay
+    if (state === STATE.WAVE_TRANS) {
+      transTimer -= dt;
+      if (transTimer <= 0) {
+        startWave();
+      }
+    } else if (state === STATE.PLAYING) {
+      checkWaveEnd();
+    }
+  } else if (state === STATE.TITLE || state === STATE.GAME_OVER) {
+    drawParticles();
+    drawPopups();
+  }
+
+  ctx.restore();
+  requestAnimationFrame(gameLoop);
+}
+
+// Initialize & Launch
+initAmbient();
+requestAnimationFrame(gameLoop);
+
+})();

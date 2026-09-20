@@ -1,0 +1,703 @@
+/* ============================================================
+   VIGHNAHARTA — The Obstacle Breaker
+   Traditional Indian Devotional Pixel-Art Arcade Design System
+   ============================================================ */
+
+:root {
+  /* Divine Palette */
+  --saffron: #FF6B00;
+  --gold: #FFD700;
+  --gold-glow: rgba(255, 215, 0, 0.45);
+  --brass-light: #FFE082;
+  --brass-mid: #D4AF37;
+  --brass-dark: #8C6314;
+  --marigold: #FFC107;
+  --vermillion: #C62828;
+  --cream: #FFF8E1;
+  --night-indigo: #1A0533;
+  --sacred-purple: #4A148C;
+  --dark-vighna: #2D0A4E;
+  --thorn-green: #2E7D32;
+  --diya-amber: #FF8F00;
+
+  /* Typography */
+  --font-hindi: 'Tiro Devanagari Hindi', serif;
+  --font-title: 'Cinzel Decorative', serif;
+  --font-ui: 'Outfit', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--night-indigo);
+  color: var(--cream);
+  font-family: var(--font-ui);
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Canvas Layer
+   ============================================================ */
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  cursor: crosshair;
+}
+
+/* ============================================================
+   Temple Frame & Torana (Top / Corners)
+   ============================================================ */
+.temple-frame-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 14px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--marigold) 0px,
+    var(--marigold) 12px,
+    var(--saffron) 12px,
+    var(--saffron) 24px,
+    var(--vermillion) 24px,
+    var(--vermillion) 36px
+  );
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 107, 0, 0.4);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.temple-frame-corners .corner-mandala {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  opacity: 0.25;
+  pointer-events: none;
+  background-image: radial-gradient(circle at center, var(--gold) 2px, transparent 3px),
+                    radial-gradient(circle at center, var(--brass-mid) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.corner-mandala.top-left { top: 18px; left: 18px; border-top: 2px solid var(--brass-mid); border-left: 2px solid var(--brass-mid); }
+.corner-mandala.top-right { top: 18px; right: 18px; border-top: 2px solid var(--brass-mid); border-right: 2px solid var(--brass-mid); }
+.corner-mandala.bottom-left { bottom: 18px; left: 18px; border-bottom: 2px solid var(--brass-mid); border-left: 2px solid var(--brass-mid); }
+.corner-mandala.bottom-right { bottom: 18px; right: 18px; border-bottom: 2px solid var(--brass-mid); border-right: 2px solid var(--brass-mid); }
+
+/* ============================================================
+   Brass Plaques & Traditional Cards
+   ============================================================ */
+.brass-plaque {
+  background: linear-gradient(145deg, #382409, #1a0e03);
+  border: 1.5px solid var(--brass-mid);
+  border-radius: 6px;
+  box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.6);
+  padding: 6px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.brass-plaque::before,
+.brass-plaque::after {
+  content: "♦";
+  position: absolute;
+  font-size: 8px;
+  color: var(--brass-light);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.brass-plaque::before { left: 4px; }
+.brass-plaque::after { right: 4px; }
+
+.plaque-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--marigold);
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px #000;
+}
+
+.plaque-value {
+  font-family: var(--font-title);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: 1px;
+  text-shadow: 0 0 8px var(--gold-glow), 0 2px 4px #000;
+}
+
+/* ============================================================
+   Heads-Up Display (HUD)
+   ============================================================ */
+.hud-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hud-group {
+  pointer-events: auto;
+}
+
+.hud-left {
+  position: absolute;
+  top: 24px;
+  left: 20px;
+}
+
+.hud-right {
+  position: absolute;
+  top: 24px;
+  right: 20px;
+}
+
+.hud-center {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hud-bottom {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* ============================================================
+   Sacred Diya Indicators (Lives)
+   ============================================================ */
+.diya-rack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(26, 5, 51, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  padding: 6px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.diya-item {
+  width: 34px;
+  height: 40px;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.diya-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Live Diya Flame Animation */
+.diya-item:not(.is-extinguished) .flame-group {
+  transform-origin: 20px 33px;
+  animation: diyaFlameFlicker 1.8s infinite ease-in-out alternate;
+}
+
+.diya-item:not(.is-extinguished):nth-child(2) .flame-group { animation-delay: 0.3s; }
+.diya-item:not(.is-extinguished):nth-child(3) .flame-group { animation-delay: 0.6s; }
+.diya-item:not(.is-extinguished):nth-child(4) .flame-group { animation-delay: 0.9s; }
+.diya-item:not(.is-extinguished):nth-child(5) .flame-group { animation-delay: 1.2s; }
+
+@keyframes diyaFlameFlicker {
+  0% { transform: scale(1, 1) rotate(-1.5deg); }
+  50% { transform: scale(0.96, 1.06) rotate(1deg); }
+  100% { transform: scale(1.04, 0.98) rotate(-1deg); }
+}
+
+/* Extinguished Diya */
+.diya-item.is-extinguished {
+  filter: grayscale(80%) brightness(50%);
+  transform: scale(0.88);
+}
+
+.diya-item.is-extinguished .flame-group {
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Smoke puff on extinguish */
+.diya-item.is-extinguished::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, rgba(200,200,200,0.6), transparent 70%);
+  border-radius: 50%;
+  animation: smokeWisp 0.9s forwards ease-out;
+}
+
+@keyframes smokeWisp {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  100% { transform: translate(-3px, -24px) scale(2.5); opacity: 0; }
+}
+
+/* ============================================================
+   Combo Badge
+   ============================================================ */
+.combo-badge {
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.85), rgba(74, 20, 140, 0.9));
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 0 16px var(--gold-glow);
+  padding: 4px 18px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.combo-badge.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.combo-text {
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--cream);
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px var(--gold);
+}
+
+/* ============================================================
+   Wave Cartouche Badge
+   ============================================================ */
+.wave-badge {
+  background: linear-gradient(180deg, #301704 0%, #150901 100%);
+  border: 1px solid var(--brass-mid);
+  padding: 5px 20px;
+  border-radius: 16px;
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wave-ornament-left,
+.wave-ornament-right {
+  color: var(--saffron);
+  font-size: 0.7rem;
+}
+
+/* Active Powerup status tags */
+.active-powerups {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.powerup-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(26, 5, 51, 0.85);
+  border: 1px solid var(--brass-mid);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  animation: pillIn 0.3s ease-out;
+}
+
+@keyframes pillIn {
+  from { transform: translateX(-15px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============================================================
+   Overlay Screens (Title & Game Over)
+   ============================================================ */
+.overlay-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(35, 10, 65, 0.85) 0%, rgba(13, 3, 26, 0.95) 100%);
+  backdrop-filter: blur(6px);
+  padding: 20px;
+}
+
+.title-content,
+.gameover-content {
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: screenFadeIn 0.5s ease-out;
+}
+
+@keyframes screenFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Ganesha Hero Presentation */
+.ganesha-hero-container {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-halo {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.4) 0%, rgba(255, 107, 0, 0.15) 50%, transparent 75%);
+  animation: haloBreath 4s infinite ease-in-out;
+}
+
+@keyframes haloBreath {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.hero-mandala-ring {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--brass-mid);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  animation: ringSlowRotate 45s infinite linear;
+}
+
+@keyframes ringSlowRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.hero-image-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--brass-mid);
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.4), inset 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.ganesha-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  transform: scale(1.05);
+}
+
+/* Typography */
+.title-typography {
+  margin-bottom: 14px;
+}
+
+.devanagari-title {
+  font-family: var(--font-hindi);
+  font-size: 2.2rem;
+  color: var(--marigold);
+  line-height: 1.1;
+  text-shadow: 0 0 12px rgba(255, 193, 7, 0.5), 0 2px 4px #000;
+}
+
+.english-title {
+  font-family: var(--font-title);
+  font-size: 1.9rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--cream);
+  text-shadow: 0 0 15px var(--gold-glow), 0 2px 6px #000;
+  margin-top: 2px;
+}
+
+.subtitle-badge {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--saffron);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.subtitle-badge .flourish {
+  color: var(--brass-mid);
+  margin: 0 4px;
+}
+
+.best-score-plaque {
+  margin-bottom: 18px;
+}
+
+/* Buttons */
+.btn-traditional {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #FF8F00 0%, #E65100 100%);
+  color: var(--cream);
+  border: 2px solid var(--brass-light);
+  border-radius: 28px;
+  padding: 12px 36px;
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(230, 81, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  overflow: hidden;
+}
+
+.btn-traditional:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(255, 143, 0, 0.7);
+  filter: brightness(1.1);
+}
+
+.btn-traditional:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.title-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.btn-secondary {
+  background: rgba(45, 10, 78, 0.6);
+  border: 1px solid var(--brass-mid);
+  color: var(--cream);
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(74, 20, 140, 0.8);
+}
+
+.title-instructions {
+  font-size: 0.8rem;
+  color: var(--brass-light);
+  opacity: 0.85;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  max-width: 360px;
+}
+
+.title-footer,
+.gameover-footer {
+  font-size: 0.72rem;
+  color: var(--marigold);
+  opacity: 0.65;
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   Game Over Content
+   ============================================================ */
+.sacred-symbol {
+  font-size: 2.2rem;
+  color: var(--gold);
+  text-shadow: 0 0 15px var(--gold-glow);
+  margin-bottom: 4px;
+}
+
+.gameover-title {
+  font-family: var(--font-title);
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--marigold);
+  margin-bottom: 4px;
+}
+
+.gameover-subtitle {
+  font-size: 0.82rem;
+  color: var(--cream);
+  opacity: 0.75;
+  margin-bottom: 14px;
+}
+
+.new-best-banner {
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.25), transparent);
+  border-top: 1px solid var(--gold);
+  border-bottom: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  padding: 4px 16px;
+  margin-bottom: 12px;
+  animation: pulseGold 2s infinite ease-in-out;
+}
+
+@keyframes pulseGold {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; text-shadow: 0 0 10px var(--gold); }
+}
+
+.stats-card {
+  background: linear-gradient(145deg, #2b1704, #120902);
+  border: 1.5px solid var(--brass-mid);
+  border-radius: 12px;
+  padding: 16px 20px;
+  width: 100%;
+  max-width: 380px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+}
+
+.stat-highlight {
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--marigold);
+}
+
+.stat-number {
+  font-family: var(--font-title);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 12px var(--gold-glow);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-cell {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cell-label {
+  font-size: 0.62rem;
+  color: var(--brass-light);
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+
+.cell-val {
+  font-family: var(--font-ui);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--cream);
+}
+
+/* ============================================================
+   Accessibility & Media Queries
+   ============================================================ */
+@media (max-width: 480px) {
+  .ganesha-hero-container {
+    width: 150px;
+    height: 150px;
+  }
+  .hero-halo { width: 160px; height: 160px; }
+  .hero-mandala-ring { width: 140px; height: 140px; }
+  .hero-image-wrapper { width: 115px; height: 115px; }
+
+  .devanagari-title { font-size: 1.8rem; }
+  .english-title { font-size: 1.5rem; }
+  .btn-traditional { padding: 10px 28px; font-size: 0.95rem; }
+  .diya-item { width: 28px; height: 34px; }
+  .plaque-value { font-size: 1.15rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

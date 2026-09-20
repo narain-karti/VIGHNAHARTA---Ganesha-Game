@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VIGHNAHARTA — The Obstacle Breaker | गणेश चतुर्थी</title>
+  <meta name="description" content="A Traditional Indian Devotional Pixel-Art Arcade game celebrating Ganesh Chaturthi. Tap dark vighnas to invoke Lord Ganesha's sacred golden blessings.">
+  <meta name="theme-color" content="#1A0533">
+  
+  <!-- Traditional & Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@400;600;700;900&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Decorative SVG Definitions & Filters -->
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <!-- Golden Brass Gradient -->
+      <linearGradient id="brassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FFE57F"/>
+        <stop offset="25%" stop-color="#FFD700"/>
+        <stop offset="50%" stop-color="#C59B27"/>
+        <stop offset="75%" stop-color="#E5A93C"/>
+        <stop offset="100%" stop-color="#8C6314"/>
+      </linearGradient>
+
+      <!-- Diya Flame Gradient -->
+      <linearGradient id="flameGrad" x1="50%" y1="100%" x2="50%" y2="0%">
+        <stop offset="0%" stop-color="#FF3D00"/>
+        <stop offset="30%" stop-color="#FF8F00"/>
+        <stop offset="70%" stop-color="#FFD54F"/>
+        <stop offset="100%" stop-color="#FFFFFF"/>
+      </linearGradient>
+
+      <!-- Soft Glow Filter -->
+      <filter id="goldenGlow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Temple Marigold Torana & Arch Decor (Top & Bottom) -->
+  <div class="temple-frame-top" aria-hidden="true">
+    <div class="torana-garland"></div>
+  </div>
+
+  <!-- Main Game Canvas (Interactive Arena) -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Heads-Up Display (In-Game Overlay) -->
+  <header id="hud" class="hud-overlay" style="display: none;">
+    <!-- Top-Left: Sacred Diyas (Lives / Blessings) -->
+    <div class="hud-group hud-left">
+      <div class="diya-rack" id="diyaRack" aria-label="5 Sacred Diya Blessings">
+        <!-- 5 Handcrafted SVG Diyas -->
+        <div class="diya-item" id="diya-0" title="Sacred Blessing 1">
+          <svg viewBox="0 0 40 46" class="diya-svg">
+            <ellipse cx="20" cy="36" rx="16" ry="7" fill="url(#brassGrad)" stroke="#5D3A0A" stroke-width="1.5"/>
+            <path d="M 6 35 C 10 42, 30 42, 34 35 Z" fill="#996515"/>
+            <ellipse cx="20" cy="34" rx="12" ry="4" fill="#3E2005"/>
+            <!-- Flame -->
+            <g class="flame-group">
+              <path class="flame-outer" d="M 20 33 C 13 28, 12 18, 20 5 C 28 18, 27 28, 20 33 Z" fill="url(#flameGrad)" filter="url(#goldenGlow)"/>
+              <ellipse class="flame-inner" cx="20" cy="24" rx="3.5" ry="6" fill="#FFFDE7"/>
+            </g>
+          </svg>
+        </div>
+        <div class="diya-item" id="diya-1" title="Sacred Blessing 2">
+          <svg viewBox="0 0 40 46" class="diya-svg">
+            <ellipse cx="20" cy="36" rx="16" ry="7" fill="url(#brassGrad)" stroke="#5D3A0A" stroke-width="1.5"/>
+            <path d="M 6 35 C 10 42, 30 42, 34 35 Z" fill="#996515"/>
+            <ellipse cx="20" cy="34" rx="12" ry="4" fill="#3E2005"/>
+            <g class="flame-group">
+              <path class="flame-outer" d="M 20 33 C 13 28, 12 18, 20 5 C 28 18, 27 28, 20 33 Z" fill="url(#flameGrad)" filter="url(#goldenGlow)"/>
+              <ellipse class="flame-inner" cx="20" cy="24" rx="3.5" ry="6" fill="#FFFDE7"/>
+            </g>
+          </svg>
+        </div>
+        <div class="diya-item" id="diya-2" title="Sacred Blessing 3">
+          <svg viewBox="0 0 40 46" class="diya-svg">
+            <ellipse cx="20" cy="36" rx="16" ry="7" fill="url(#brassGrad)" stroke="#5D3A0A" stroke-width="1.5"/>
+            <path d="M 6 35 C 10 42, 30 42, 34 35 Z" fill="#996515"/>
+            <ellipse cx="20" cy="34" rx="12" ry="4" fill="#3E2005"/>
+            <g class="flame-group">
+              <path class="flame-outer" d="M 20 33 C 13 28, 12 18, 20 5 C 28 18, 27 28, 20 33 Z" fill="url(#flameGrad)" filter="url(#goldenGlow)"/>
+              <ellipse class="flame-inner" cx="20" cy="24" rx="3.5" ry="6" fill="#FFFDE7"/>
+            </g>
+          </svg>
+        </div>
+        <div class="diya-item" id="diya-3" title="Sacred Blessing 4">
+          <svg viewBox="0 0 40 46" class="diya-svg">
+            <ellipse cx="20" cy="36" rx="16" ry="7" fill="url(#brassGrad)" stroke="#5D3A0A" stroke-width="1.5"/>
+            <path d="M 6 35 C 10 42, 30 42, 34 35 Z" fill="#996515"/>
+            <ellipse cx="20" cy="34" rx="12" ry="4" fill="#3E2005"/>
+            <g class="flame-group">
+              <path class="flame-outer" d="M 20 33 C 13 28, 12 18, 20 5 C 28 18, 27 28, 20 33 Z" fill="url(#flameGrad)" filter="url(#goldenGlow)"/>
+              <ellipse class="flame-inner" cx="20" cy="24" rx="3.5" ry="6" fill="#FFFDE7"/>
+            </g>
+          </svg>
+        </div>
+        <div class="diya-item" id="diya-4" title="Sacred Blessing 5">
+          <svg viewBox="0 0 40 46" class="diya-svg">
+            <ellipse cx="20" cy="36" rx="16" ry="7" fill="url(#brassGrad)" stroke="#5D3A0A" stroke-width="1.5"/>
+            <path d="M 6 35 C 10 42, 30 42, 34 35 Z" fill="#996515"/>
+            <ellipse cx="20" cy="34" rx="12" ry="4" fill="#3E2005"/>
+            <g class="flame-group">
+              <path class="flame-outer" d="M 20 33 C 13 28, 12 18, 20 5 C 28 18, 27 28, 20 33 Z" fill="url(#flameGrad)" filter="url(#goldenGlow)"/>
+              <ellipse class="flame-inner" cx="20" cy="24" rx="3.5" ry="6" fill="#FFFDE7"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top-Center: Combo Badge (Dynamic) -->
+    <div class="hud-group hud-center">
+      <div class="combo-badge" id="comboBadge">
+        <span class="combo-text" id="comboText">x2 COMBO</span>
+      </div>
+    </div>
+
+    <!-- Top-Right: Brass Plaque Score -->
+    <div class="hud-group hud-right">
+      <div class="brass-plaque score-plaque">
+        <span class="plaque-label">PUNYA / SCORE</span>
+        <span class="plaque-value" id="hudScore">0</span>
+      </div>
+    </div>
+
+    <!-- Bottom-Center: Wave Badge -->
+    <div class="hud-bottom">
+      <div class="wave-badge" id="hudWaveBadge">
+        <span class="wave-ornament-left">✦</span>
+        <span id="hudWaveText">WAVE I</span>
+        <span class="wave-ornament-right">✦</span>
+      </div>
+    </div>
+
+    <!-- Active Powerup Badges (Bottom Left) -->
+    <div class="active-powerups" id="activePowerups"></div>
+  </header>
+
+  <!-- TITLE SCREEN OVERLAY -->
+  <main id="titleScreen" class="overlay-screen active-screen">
+    <div class="temple-frame-corners" aria-hidden="true">
+      <div class="corner-mandala top-left"></div>
+      <div class="corner-mandala top-right"></div>
+      <div class="corner-mandala bottom-left"></div>
+      <div class="corner-mandala bottom-right"></div>
+    </div>
+
+    <div class="title-content">
+      <!-- Sacred Deity Pixel Art Focus -->
+      <div class="ganesha-hero-container">
+        <div class="hero-halo"></div>
+        <div class="hero-mandala-ring"></div>
+        <div class="hero-image-wrapper">
+          <img src="assets/ganesha.jpg" alt="Lord Ganesha - The Sacred Protected Centre" class="ganesha-hero-img" id="titleGaneshaImg" width="220" height="220">
+        </div>
+      </div>
+
+      <!-- Sacred Title -->
+      <div class="title-typography">
+        <div class="devanagari-title">विघ्नहर्ता</div>
+        <h1 class="english-title">VIGHNAHARTA</h1>
+        <div class="subtitle-badge">
+          <span class="flourish">❦</span>
+          THE OBSTACLE BREAKER
+          <span class="flourish">❧</span>
+        </div>
+      </div>
+
+      <!-- Best Score Brass Plaque -->
+      <div class="brass-plaque best-score-plaque" id="titleBestPlaque">
+        <span class="plaque-label">SACRED BEST SCORE</span>
+        <span class="plaque-value" id="titleBestScore">0</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="title-actions">
+        <button id="btnPlay" class="btn-traditional btn-play">
+          <span class="btn-glow"></span>
+          <span class="btn-text">▶ START PUJA</span>
+        </button>
+
+        <div class="secondary-actions">
+          <button id="btnAudioToggle" class="btn-secondary" title="Toggle Temple Audio">
+            <span id="audioIcon">🔔</span>
+            <span id="audioStatusText">BELLS: ON</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="title-instructions">
+        <span>✦ You are Ganesha's blessing. Tap dark vighnas before they breach the sanctuary. ✦</span>
+      </div>
+
+      <footer class="title-footer">
+        A Sacred Offering for Ganesh Chaturthi  •  गणपति बप्पा मोरया 🙏
+      </footer>
+    </div>
+  </main>
+
+  <!-- GAME OVER / PUJA COMPLETE OVERLAY -->
+  <section id="gameOverScreen" class="overlay-screen" style="display: none;">
+    <div class="gameover-content">
+      <div class="sacred-symbol">ॐ</div>
+      <h2 class="gameover-title">THE PUJA RESTS FOR NOW</h2>
+      <p class="gameover-subtitle">Ganesha's sacred blessings remain ever eternal.</p>
+
+      <!-- High Score Celebration Banner -->
+      <div class="new-best-banner" id="newBestBanner" style="display: none;">
+        ✨ NEW BEST SCORE REACHED ✨
+      </div>
+
+      <!-- Score Card Plaque -->
+      <div class="brass-card stats-card">
+        <div class="stat-highlight">
+          <span class="stat-title">FINAL SCORE</span>
+          <span class="stat-number" id="goScore">0</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <span class="cell-label">BEST SCORE</span>
+            <span class="cell-val" id="goBest">0</span>
+          </div>
+          <div class="stat-cell">
+            <span class="cell-label">WAVE REACHED</span>
+            <span class="cell-val" id="goWave">1</span>
+          </div>
+          <div class="stat-cell">
+            <span class="cell-label">VIGHNAS CLEARED</span>
+            <span class="cell-val" id="goCleared">0</span>
+          </div>
+          <div class="stat-cell">
+            <span class="cell-label">MAX COMBO</span>
+            <span class="cell-val" id="goCombo">x1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Play Again Action -->
+      <button id="btnRestart" class="btn-traditional btn-play">
+        <span class="btn-glow"></span>
+        <span class="btn-text">▶ OFFER PUJA AGAIN</span>
+      </button>
+
+      <footer class="gameover-footer">
+        गणपति बप्पा मोरया • मंगल मूर्ति मोरया 🙏
+      </footer>
+    </div>
+  </section>
+
+  <!-- Core Game Logic -->
+  <script src="game.js"></script>
+</body>
+</html>
