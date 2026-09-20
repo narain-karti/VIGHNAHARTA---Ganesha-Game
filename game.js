@@ -717,6 +717,11 @@ function drawObstacles() {
       ctx.closePath();
       ctx.fill();
 
+      // Subtle Indian geometric fragments inside smoke body
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+      ctx.lineWidth = 1 * dpr;
+      ctx.strokeRect(-r * 0.25, -r * 0.25, r * 0.5, r * 0.5);
+
       // Glowing dark core
       ctx.fillStyle = '#E1BEE7';
       ctx.beginPath();
@@ -1402,6 +1407,45 @@ function destroyObstacle(idx, isAuto = false) {
 
   // Emit rich marigold + gold particle bursts
   emitBlessingParticles(o.x, o.y, isCloseSave ? 32 : 18, C.gold, isCloseSave);
+
+  // Stone Block breaks into multiple stone chunks and bronze dust
+  if (o.type === 'STONE') {
+    for (let c = 0; c < 8; c++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (60 + Math.random() * 85) * dpr;
+      particles.push({
+        x: o.x, y: o.y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 0.6, maxLife: 0.6,
+        size: (5 + Math.random() * 4) * dpr,
+        color: Math.random() > 0.5 ? C.stoneDark : C.stoneGray,
+        isPetal: false,
+        rot: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 10
+      });
+    }
+  }
+
+  // Dark Swarm compresses inward with gold flash and explodes into particles
+  if (o.type === 'SWARM') {
+    closeSaveRings.push({ x: o.x, y: o.y, r: 4 * dpr, maxR: 45 * dpr, life: 0.3, maxLife: 0.3 });
+    for (let s = 0; s < 16; s++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (70 + Math.random() * 100) * dpr;
+      particles.push({
+        x: o.x, y: o.y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 0.45, maxLife: 0.45,
+        size: (2.5 + Math.random() * 2) * dpr,
+        color: Math.random() > 0.4 ? C.gold : '#BA68C8',
+        isPetal: false,
+        rot: 0, vRot: 0
+      });
+    }
+  }
+
   addPopup(o.x, o.y - 20 * dpr, `+${pts}`, C.gold, combo > 1 ? 19 : 14);
 
   // Update DOM HUD Score & Combo
@@ -1543,6 +1587,23 @@ function gameOver() {
   if (isNewBest) {
     bestScore = score;
     localStorage.setItem('vighnaharta_best', `${bestScore}`);
+    // Large golden particle celebration for new best score
+    emitBlessingParticles(cx, cy, 65, C.gold, true);
+    closeSaveRings.push({ x: cx, y: cy, r: 10 * dpr, maxR: spawnR * 0.9, life: 0.9, maxLife: 0.9 });
+    for (let k = 0; k < 25; k++) {
+      petals.push({
+        x: cx + (Math.random() - 0.5) * 200 * dpr,
+        y: cy + (Math.random() - 0.5) * 200 * dpr,
+        vy: (25 + Math.random() * 40) * dpr,
+        vx: (Math.random() - 0.5) * 30 * dpr,
+        angle: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 4,
+        w: (8 + Math.random() * 6) * dpr,
+        h: (14 + Math.random() * 8) * dpr,
+        color: Math.random() > 0.4 ? C.marigold : C.saffron,
+        alpha: 0.8
+      });
+    }
   }
 
   // Populate Game Over screen stats
@@ -1698,6 +1759,32 @@ function gameLoop(timestamp) {
       const speedMult = slowActive > 0 ? 0.45 : 1.0;
       o.x += o.vx * speedMult * dt;
       o.y += o.vy * speedMult * dt;
+
+      // Thorn Cluster mild erratic trajectory sway
+      if (o.type === 'THORN') {
+        const hyp = Math.hypot(o.vx, o.vy) || 1;
+        const perpX = -o.vy / hyp;
+        const perpY = o.vx / hyp;
+        const sway = Math.sin(o.animTime * 6) * 18 * dpr;
+        o.x += perpX * sway * dt;
+        o.y += perpY * sway * dt;
+      }
+
+      // Shadow Wisp trailing smoke particles
+      if (o.type === 'WISP' && Math.random() > 0.6) {
+        particles.push({
+          x: o.x + (Math.random() - 0.5) * 6 * dpr,
+          y: o.y + (Math.random() - 0.5) * 6 * dpr,
+          vx: -o.vx * 0.15 + (Math.random() - 0.5) * 10 * dpr,
+          vy: -o.vy * 0.15 + (Math.random() - 0.5) * 10 * dpr,
+          life: 0.28, maxLife: 0.28,
+          size: 2.8 * dpr,
+          color: '#4A148C',
+          isPetal: false,
+          rot: 0, vRot: 0
+        });
+      }
+
       o.rot += o.rotSpeed * dt;
       o.animTime += dt;
 
