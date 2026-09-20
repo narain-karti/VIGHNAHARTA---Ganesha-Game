@@ -242,6 +242,13 @@ let userManuallyChangedLang = false;
 // Optional sync-status line on the game-over screen (may not exist in DOM).
 const uiGoSyncStatusText = document.getElementById('goSyncStatusText');
 
+// Story Intro & How to Play Modal Elements
+const uiIntroStoryModal = document.getElementById('introStoryModal');
+const uiBtnStartBattle = document.getElementById('btnStartBattle');
+const uiBtnOpenHowToPlay = document.getElementById('btnOpenHowToPlay');
+const uiBtnHudHelp = document.getElementById('btnHudHelp');
+const uiBtnCloseIntroStory = document.getElementById('btnCloseIntroStory');
+
 // Escape user-controlled strings before injecting into innerHTML templates.
 function escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -336,6 +343,18 @@ function openRegistrationModal(allowCancel = true) {
 
 function closeRegistrationModal() {
   if (uiRegistrationModal) uiRegistrationModal.style.display = 'none';
+}
+
+function openIntroStoryModal() {
+  if (uiIntroStoryModal) {
+    uiIntroStoryModal.style.display = 'flex';
+  }
+}
+
+function closeIntroStoryModal() {
+  if (uiIntroStoryModal) {
+    uiIntroStoryModal.style.display = 'none';
+  }
 }
 
 function saveDevoteeProfile() {
@@ -1326,6 +1345,65 @@ function stopTempleDrone() {
       if (droneOsc2) { try { droneOsc2.stop(); droneOsc2.disconnect(); } catch (e) {} droneOsc2 = null; }
       if (droneGain) { try { droneGain.disconnect(); } catch (e) {} droneGain = null; }
     }, 650);
+  } catch (e) {}
+}
+
+// --- Hindu Mythological Climax Battle BGM Engine ---
+let climaxAudio = null;
+
+function initClimaxBGM() {
+  if (!climaxAudio) {
+    climaxAudio = new Audio('assets/audio/climax_mythological_bgm.mp3');
+    climaxAudio.loop = true;
+    climaxAudio.preload = 'auto';
+    climaxAudio.volume = 0.55;
+  }
+}
+
+function startClimaxBGM() {
+  if (!soundEnabled) return;
+  initClimaxBGM();
+  if (climaxAudio) {
+    climaxAudio.currentTime = 0;
+    climaxAudio.volume = 0.55;
+    climaxAudio.playbackRate = 1.0;
+    const playPromise = climaxAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Autoplay policy fallback: resumes on first user touch
+      });
+    }
+  }
+  startTempleDrone();
+}
+
+function stopClimaxBGM() {
+  if (climaxAudio) {
+    try {
+      climaxAudio.pause();
+      climaxAudio.currentTime = 0;
+    } catch (e) {}
+  }
+  stopTempleDrone();
+}
+
+function updateClimaxBGMIntensity(currentWave) {
+  if (!climaxAudio || climaxAudio.paused) return;
+  try {
+    if (currentWave >= 9) {
+      // Mahavighna Boss / Final Climax
+      climaxAudio.playbackRate = 1.14;
+      climaxAudio.volume = 0.75;
+    } else if (currentWave >= 6) {
+      climaxAudio.playbackRate = 1.08;
+      climaxAudio.volume = 0.65;
+    } else if (currentWave >= 3) {
+      climaxAudio.playbackRate = 1.04;
+      climaxAudio.volume = 0.58;
+    } else {
+      climaxAudio.playbackRate = 1.0;
+      climaxAudio.volume = 0.52;
+    }
   } catch (e) {}
 }
 
@@ -3684,6 +3762,7 @@ function startWave() {
 
   sfxShankha(); // Ceremonial conch blast heralds every wave
   triggerMushikaVoice(wave + 1); // Mooshak provokes and rallies Ganesha!
+  updateClimaxBGMIntensity(wave); // Accelerate and swell BGM in climax waves
 
   if (uiHudWaveText) {
     uiHudWaveText.textContent = wave === 9 ? 'MAHAVIGHNA' : `WAVE ${toRoman(wave + 1)}`;
@@ -3768,7 +3847,7 @@ function startGame() {
 
   initAudio();
   if (soundEnabled) {
-    startTempleDrone();
+    startClimaxBGM();
   }
   tutorialAlpha = 1.0;
   firstKillDone = false;
@@ -3810,7 +3889,7 @@ function startGame() {
 function gameOver() {
   state = STATE.GAME_OVER;
   sfxGameOver();
-  stopTempleDrone();
+  stopClimaxBGM();
 
   const isNewBest = score > bestScore;
   if (isNewBest) {
@@ -4026,7 +4105,47 @@ window.addEventListener('pointerup', (e) => {
 // DOM Button Listeners
 if (uiBtnPlay) {
   uiBtnPlay.addEventListener('click', () => {
+    let seenIntro = false;
+    try {
+      seenIntro = !!sessionStorage.getItem('vighnaharta_intro_seen');
+    } catch (e) {}
+
+    if (!seenIntro) {
+      openIntroStoryModal();
+    } else {
+      startGame();
+    }
+  });
+}
+
+if (uiBtnStartBattle) {
+  uiBtnStartBattle.addEventListener('click', () => {
+    closeIntroStoryModal();
+    try {
+      sessionStorage.setItem('vighnaharta_intro_seen', '1');
+    } catch (e) {}
+    initAudio();
     startGame();
+  });
+}
+
+if (uiBtnCloseIntroStory) {
+  uiBtnCloseIntroStory.addEventListener('click', closeIntroStoryModal);
+}
+
+if (uiBtnOpenHowToPlay) {
+  uiBtnOpenHowToPlay.addEventListener('click', openIntroStoryModal);
+}
+
+if (uiBtnHudHelp) {
+  uiBtnHudHelp.addEventListener('click', openIntroStoryModal);
+}
+
+if (uiIntroStoryModal) {
+  uiIntroStoryModal.addEventListener('click', (e) => {
+    if (e.target === uiIntroStoryModal) {
+      closeIntroStoryModal();
+    }
   });
 }
 
@@ -4041,12 +4160,12 @@ if (uiBtnAudioToggle) {
     initAudio();
     soundEnabled = !soundEnabled;
     if (soundEnabled) {
-      if (state === STATE.PLAYING) startTempleDrone();
+      if (state === STATE.PLAYING) startClimaxBGM();
     } else {
-      stopTempleDrone();
+      stopClimaxBGM();
     }
     if (uiAudioIcon) uiAudioIcon.textContent = soundEnabled ? '🔔' : '🔕';
-    if (uiAudioStatusText) uiAudioStatusText.textContent = soundEnabled ? 'BELLS: ON' : 'BELLS: OFF';
+    if (uiAudioStatusText) uiAudioStatusText.textContent = soundEnabled ? 'MUSIC & BELLS: ON' : 'MUSIC & BELLS: OFF';
   });
 }
 
@@ -4281,6 +4400,7 @@ function gameLoop(timestamp) {
               if (boss.hp <= 0) {
                  triggerMahaAarti();
                  state = STATE.VICTORY;
+                 stopClimaxBGM();
                  playVoiceNarration('assets/audio/mushika_victory.mp3', 'Jaya Ganesha! Victory is ours! You broke every obstacle and saved the universe! Now, where is my victory modak?', 'MOOSHAK VAHANA');
                  if (uiGameOverScreen) {
                    uiGameOverScreen.style.display = 'flex';

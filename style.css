@@ -1538,15 +1538,196 @@ html, body {
   white-space: nowrap;
 }
 
-@media (max-width: 600px) {
+/* ============================================================
+   Mobile Phone Responsiveness: Mooshak Companion Moves to the TOP
+   ============================================================ */
+@media (max-width: 680px) {
   .mushika-companion {
-    bottom: 12px;
-    right: 12px;
-    max-width: calc(100% - 24px);
+    position: fixed !important;
+    top: 56px !important;
+    bottom: auto !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100% - 20px) !important;
+    width: calc(100% - 20px) !important;
+    gap: 8px;
+    z-index: 120 !important;
+    align-items: flex-start;
+  }
+
+  .mushika-companion.minimized {
+    left: auto !important;
+    right: 12px !important;
+    top: 56px !important;
+    transform: none !important;
+    width: auto !important;
+  }
+
+  .mushika-speech-bubble {
+    padding: 8px 12px !important;
+    border-radius: 12px !important;
+    border-top-right-radius: 4px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75), 0 0 10px rgba(255, 215, 0, 0.25) !important;
+  }
+
+  .mushika-speech-text {
+    font-size: 0.75rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .mushika-avatar-wrapper {
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+/* ============================================================
+   HUD Help Button
+   ============================================================ */
+.btn-hud-help {
+  background: rgba(45, 10, 78, 0.75);
+  border: 1.5px solid var(--brass-mid);
+  color: var(--gold);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s, background 0.2s, border-color 0.2s;
+  pointer-events: auto;
+}
+
+.btn-hud-help:hover {
+  background: rgba(74, 20, 140, 0.95);
+  border-color: var(--gold);
+  transform: scale(1.12);
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+
+/* ============================================================
+   Initial Story & How to Play Modal Styles
+   ============================================================ */
+.intro-story-card {
+  max-width: 550px !important;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.intro-story-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.story-plot-box {
+  background: linear-gradient(135deg, rgba(74, 20, 140, 0.35) 0%, rgba(26, 5, 51, 0.7) 100%);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.story-plot-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.story-icon {
+  font-size: 1.15rem;
+}
+
+.story-heading {
+  font-family: var(--font-title);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 1.5px;
+}
+
+.story-plot-desc {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--cream);
+  margin: 0;
+  opacity: 0.95;
+}
+
+.story-plot-desc strong {
+  color: var(--gold);
+}
+
+.how-to-play-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.how-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(18, 4, 34, 0.75);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.how-step-item:hover {
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+
+.step-icon-badge {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.step-title {
+  font-family: var(--font-title);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.8px;
+}
+
+.step-desc {
+  font-size: 0.73rem;
+  line-height: 1.35;
+  color: #ECEFF1;
+}
+
+.step-desc strong {
+  color: #FFD54F;
+}
+
+@media (max-width: 540px) {
+  .how-to-play-grid {
+    grid-template-columns: 1fr;
     gap: 8px;
   }
-  .mushika-speech-text {
-    font-size: 0.78rem;
+  .intro-story-card {
+    max-width: 95vw !important;
+    padding: 16px 12px;
   }
 }
 

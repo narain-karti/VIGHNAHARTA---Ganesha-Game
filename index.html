@@ -174,12 +174,13 @@
       </div>
     </div>
 
-    <!-- Top-Right: Brass Plaque Score -->
+    <!-- Top-Right: Brass Plaque Score & Help -->
     <div class="hud-group hud-right">
       <div class="brass-plaque score-plaque">
         <span class="plaque-label">PUNYA / SCORE</span>
         <span class="plaque-value" id="hudScore">0</span>
       </div>
+      <button id="btnHudHelp" class="btn-hud-help" title="Story Plot & How to Play" aria-label="Game Instructions & Story">?</button>
     </div>
 
     <!-- Bottom-Center: Wave Badge & Devotee Tag -->
@@ -266,6 +267,10 @@
             <span id="audioIcon">🔔</span>
             <span id="audioStatusText">BELLS: ON</span>
           </button>
+          <button id="btnOpenHowToPlay" class="btn-secondary" title="How to Play & Story Plot">
+            <span>📜</span>
+            <span>HOW TO PLAY</span>
+          </button>
         </div>
       </div>
 
@@ -350,6 +355,78 @@
       </footer>
     </div>
   </section>
+
+  <!-- INITIAL STORY & HOW TO PLAY MODAL -->
+  <div id="introStoryModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="introStoryTitle">
+    <div class="modal-card brass-card intro-story-card">
+      <div class="modal-decor-top"></div>
+      <div class="modal-header">
+        <div class="modal-header-left" style="display: flex; align-items: center; gap: 10px;">
+          <div class="modal-flourish">🪔</div>
+          <div>
+            <h2 class="modal-title" id="introStoryTitle">THE SACRED SANCTUM</h2>
+            <div class="modal-subtitle">विघ्नहर्ता महायुद्ध • Story Plot & How to Play</div>
+          </div>
+        </div>
+        <button id="btnCloseIntroStory" class="btn-close" title="Close">✕</button>
+      </div>
+
+      <div class="intro-story-body">
+        <!-- Story Plot Card -->
+        <div class="story-plot-box">
+          <div class="story-plot-header">
+            <span class="story-icon">📜</span>
+            <span class="story-heading">STORY PLOT</span>
+          </div>
+          <p class="story-plot-desc">
+            Within Lord Ganesha’s temple sanctum, <strong>Five Sacred Akhanda Diyas</strong> burn with eternal cosmic wisdom. The dark titan <strong>Mahavighna</strong> has commanded his demon legions to extinguish the holy flames. Stand with Lord Ganesha to banish every obstacle!
+          </p>
+        </div>
+
+        <!-- How To Play Grid -->
+        <div class="how-to-play-grid">
+          <div class="how-step-item">
+            <div class="step-icon-badge">🪓</div>
+            <div class="step-content">
+              <span class="step-title">TAP DEMONS TO STRIKE</span>
+              <span class="step-desc">Tap or click approaching demons before they reach the inner sanctum to strike with Ganesha’s golden Parashu.</span>
+            </div>
+          </div>
+
+          <div class="how-step-item">
+            <div class="step-icon-badge">🪨</div>
+            <div class="step-content">
+              <span class="step-title">MULTI-HIT STONE BOXES</span>
+              <span class="step-desc">Armored Stone Blocks take <strong>2 direct hits</strong> to shatter! Watch for the fracture crack on the first hit.</span>
+            </div>
+          </div>
+
+          <div class="how-step-item">
+            <div class="step-icon-badge">🪔</div>
+            <div class="step-content">
+              <span class="step-title">DEFEND 5 SACRED DIYAS</span>
+              <span class="step-desc">Every demon that breaches the sanctum extinguishes a Diya flame. Defend all 5 across 10 escalating waves!</span>
+            </div>
+          </div>
+
+          <div class="how-step-item">
+            <div class="step-icon-badge">⚡</div>
+            <div class="step-content">
+              <span class="step-title">MAHA-AARTI AURA BLAST</span>
+              <span class="step-desc">Chain strikes to fill your Aura meter. At 100%, <strong>double-tap anywhere</strong> for a screen-clearing blast!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-form-actions">
+        <button type="button" id="btnStartBattle" class="btn-traditional btn-modal-submit">
+          <span class="btn-glow"></span>
+          <span class="btn-text">BEGIN BATTLE / युद्ध आरंभ ⚔️</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- DEVOTEE REGISTRATION MODAL -->
   <div id="registrationModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="regModalTitle">
