@@ -2911,28 +2911,64 @@ function spawnObstacle() {
   }
 }
 
-// --- Obstacle Rendering Pipelines (Handcrafted Vectors, Zero Plain Boxes) ---
+// --- Obstacle Rendering Pipelines (Pixelated Retro Sprites & Hard Hitpoint Boxes) ---
 function drawObstacles() {
   for (const o of obstacles) {
     ctx.save();
     ctx.translate(o.x, o.y);
 
-    // Dynamic rotation: Demon faces Lord Ganesha as it approaches!
-    const faceAngle = Math.atan2(cy - o.y, cx - o.x);
-    ctx.rotate(faceAngle + Math.PI / 2);
+    // Get the sprite from our generated pixel art assets
+    const sprite = pixelSprites[o.type];
 
-    if (o.type === 'WISP') {
-      drawMonsterWisp(ctx, o);
-    } else if (o.type === 'THORN') {
-      drawMonsterThorn(ctx, o);
-    } else if (o.type === 'STONE') {
-      drawMonsterStone(ctx, o);
-    } else if (o.type === 'SWARM') {
-      drawMonsterFire(ctx, o);
-    } else if (o.type === 'BOSS') {
-      drawMonsterBoss(ctx, o);
-    } else if (o.type === 'ORB') {
-      drawMonsterOrb(ctx, o);
+    if (sprite) {
+      ctx.rotate(o.rot);
+
+      // Flash effect if damaged (for multi-hit STONE block or BOSS)
+      if (o.type === 'STONE' && o.hp < o.maxHp) {
+        ctx.shadowColor = C.gold;
+        ctx.shadowBlur = 18 * dpr;
+      }
+      if (o.type === 'BOSS' && o.hp < o.maxHp) {
+        ctx.shadowColor = C.vighnaCore;
+        ctx.shadowBlur = 22 * dpr;
+      }
+
+      // Draw the pixel art sprite with crisp, non-smoothed pixels
+      const drawSize = o.radius * 2.2;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sprite, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+      ctx.imageSmoothingEnabled = true;
+
+      // Crack overlay & HP indicator for damaged multi-hit Stone Block
+      if (o.type === 'STONE' && o.hp < o.maxHp) {
+        ctx.strokeStyle = '#FFE082';
+        ctx.lineWidth = 2.2 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(-drawSize * 0.28, -drawSize * 0.32);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(drawSize * 0.25, drawSize * 0.28);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-drawSize * 0.3, drawSize * 0.18);
+        ctx.stroke();
+
+        // 1 HP remaining text
+        ctx.fillStyle = C.gold;
+        ctx.font = `bold ${10 * dpr}px "Outfit", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4 * dpr;
+        ctx.fillText('1 HP', 0, -drawSize * 0.55);
+        ctx.shadowBlur = 0;
+      }
+    } else {
+      // Fallback
+      if (o.type === 'STONE') drawMonsterStone(ctx, o);
+      else if (o.type === 'THORN') drawMonsterThorn(ctx, o);
+      else if (o.type === 'SWARM') drawMonsterFire(ctx, o);
+      else if (o.type === 'BOSS') drawMonsterBoss(ctx, o);
+      else if (o.type === 'ORB') drawMonsterOrb(ctx, o);
+      else drawMonsterWisp(ctx, o);
     }
 
     ctx.restore();
