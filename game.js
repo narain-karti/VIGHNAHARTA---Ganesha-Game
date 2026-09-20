@@ -185,8 +185,648 @@ const uiGoCleared = document.getElementById('goCleared');
 const uiGoCombo = document.getElementById('goCombo');
 const uiNewBestBanner = document.getElementById('newBestBanner');
 
+// Devotee Profile & NIAT Campus Elements
+const uiTitleDevoteeName = document.getElementById('titleDevoteeName');
+const uiTitleDevoteeCampus = document.getElementById('titleDevoteeCampus');
+const uiBtnSwitchDevotee = document.getElementById('btnSwitchDevotee');
+const uiTitleDevoteeCard = document.getElementById('titleDevoteeCard');
+const uiHudPlayerTag = document.getElementById('hudPlayerTag');
+const uiHudPlayerName = document.getElementById('hudPlayerName');
+const uiHudPlayerCampus = document.getElementById('hudPlayerCampus');
+const uiGoDevoteeName = document.getElementById('goDevoteeName');
+const uiGoDevoteeCampus = document.getElementById('goDevoteeCampus');
+const uiBtnGoLeaderboard = document.getElementById('btnGoLeaderboard');
+const uiBtnGoDevoteeCard = document.getElementById('btnGoDevoteeCard');
+
+// Registration Modal Elements
+const uiRegistrationModal = document.getElementById('registrationModal');
+const uiInputDevoteeName = document.getElementById('inputDevoteeName');
+const uiSelectNiatCampus = document.getElementById('selectNiatCampus');
+const uiInputStudentId = document.getElementById('inputStudentId');
+const uiBtnSaveRegistration = document.getElementById('btnSaveRegistration');
+const uiBtnCancelRegistration = document.getElementById('btnCancelRegistration');
+
+// Campus Scoreboard Modal Elements
+const uiLeaderboardModal = document.getElementById('leaderboardModal');
+const uiBtnOpenLeaderboard = document.getElementById('btnOpenLeaderboard');
+const uiBtnCloseLeaderboard = document.getElementById('btnCloseLeaderboard');
+const uiBtnCloseLeaderboardBottom = document.getElementById('btnCloseLeaderboardBottom');
+const uiTabBtnCampuses = document.getElementById('tabBtnCampuses');
+const uiTabBtnSessions = document.getElementById('tabBtnSessions');
+const uiTableLeaderboardHead = document.getElementById('tableLeaderboardHead');
+const uiTableLeaderboardBody = document.getElementById('tableLeaderboardBody');
+
+// Ganesha Devotee Card Modal Elements
+const uiBtnOpenDevoteeCard = document.getElementById('btnOpenDevoteeCard');
+const uiDevoteeCardModal = document.getElementById('devoteeCardModal');
+const uiDevoteeCardCanvas = document.getElementById('devoteeCardCanvas');
+const uiBtnDownloadCardPng = document.getElementById('btnDownloadCardPng');
+const uiBtnCloseDevoteeCard = document.getElementById('btnCloseDevoteeCard');
+const uiBtnCloseCardBottom = document.getElementById('btnCloseCardBottom');
+const uiBtnCardLangEn = document.getElementById('btnCardLangEn');
+const uiBtnCardLangTa = document.getElementById('btnCardLangTa');
+const uiCardModalSubtitle = document.getElementById('cardModalSubtitle');
+let cardLanguage = 'en'; // 'en' (English) | 'ta' (Tamil)
+
 if (uiTitleBestScore) {
   uiTitleBestScore.textContent = bestScore.toLocaleString();
+}
+
+// --- Devotee & NIAT Campus Database Management ---
+let currentDevotee = {
+  name: localStorage.getItem('vighnaharta_player_name') || '',
+  campus: localStorage.getItem('vighnaharta_player_campus') || '',
+  studentId: localStorage.getItem('vighnaharta_player_id') || ''
+};
+
+function updateDevoteeUI() {
+  const hasProfile = Boolean(currentDevotee.name && currentDevotee.campus);
+  if (uiTitleDevoteeName) {
+    uiTitleDevoteeName.textContent = hasProfile ? currentDevotee.name : 'Tap to Register';
+  }
+  if (uiTitleDevoteeCampus) {
+    uiTitleDevoteeCampus.textContent = hasProfile ? currentDevotee.campus : 'Select your NIAT Campus';
+  }
+  if (uiHudPlayerName) {
+    uiHudPlayerName.textContent = currentDevotee.name || 'Devotee';
+  }
+  if (uiHudPlayerCampus) {
+    const shortCampus = currentDevotee.campus.replace(/^NIAT\s*-\s*/, '') || 'NIAT';
+    uiHudPlayerCampus.textContent = shortCampus;
+  }
+}
+
+function openRegistrationModal(allowCancel = true) {
+  if (!uiRegistrationModal) return;
+  if (uiInputDevoteeName) uiInputDevoteeName.value = currentDevotee.name || '';
+  if (uiSelectNiatCampus) uiSelectNiatCampus.value = currentDevotee.campus || '';
+  if (uiInputStudentId) uiInputStudentId.value = currentDevotee.studentId || '';
+  if (uiBtnCancelRegistration) {
+    uiBtnCancelRegistration.style.display = (allowCancel && currentDevotee.name && currentDevotee.campus) ? 'inline-block' : 'none';
+  }
+  uiRegistrationModal.style.display = 'flex';
+  if (uiInputDevoteeName) {
+    setTimeout(() => uiInputDevoteeName.focus(), 100);
+  }
+}
+
+function closeRegistrationModal() {
+  if (uiRegistrationModal) uiRegistrationModal.style.display = 'none';
+}
+
+function saveDevoteeProfile() {
+  const name = (uiInputDevoteeName ? uiInputDevoteeName.value : '').trim();
+  const campus = (uiSelectNiatCampus ? uiSelectNiatCampus.value : '').trim();
+  const studentId = (uiInputStudentId ? uiInputStudentId.value : '').trim();
+
+  if (!name) {
+    alert('Please enter your Devotee Name / कृपया अपना नाम दर्ज करें।');
+    if (uiInputDevoteeName) uiInputDevoteeName.focus();
+    return false;
+  }
+  if (!campus) {
+    alert('Please choose your NIAT Campus / कृपया अपना NIAT कैंपस चुनें।');
+    if (uiSelectNiatCampus) uiSelectNiatCampus.focus();
+    return false;
+  }
+
+  currentDevotee = { name, campus, studentId };
+  localStorage.setItem('vighnaharta_player_name', name);
+  localStorage.setItem('vighnaharta_player_campus', campus);
+  localStorage.setItem('vighnaharta_player_id', studentId);
+
+  updateDevoteeUI();
+  closeRegistrationModal();
+  return true;
+}
+
+// Database record submission (Excel file & browser cache)
+async function recordScoreToDatabase(scoreVal, waveVal, clearedVal, comboVal, blessingsVal) {
+  const payload = {
+    name: currentDevotee.name || 'Anonymous Devotee',
+    campus: currentDevotee.campus || 'NIAT - General',
+    studentId: currentDevotee.studentId || '',
+    score: scoreVal,
+    wave: waveVal,
+    cleared: clearedVal,
+    combo: comboVal,
+    blessings: blessingsVal
+  };
+
+  // 1. Save to browser persistent database
+  try {
+    const rawDb = localStorage.getItem('vighnaharta_offline_db');
+    const localDb = rawDb ? JSON.parse(rawDb) : [];
+    const dateStr = new Date().toLocaleString();
+    localDb.unshift({
+      sessionId: `VGH-${Date.now().toString().slice(-6)}`,
+      timestamp: dateStr,
+      ...payload
+    });
+    localStorage.setItem('vighnaharta_offline_db', JSON.stringify(localDb.slice(0, 100)));
+  } catch(e) {
+    console.warn('LocalStorage DB error:', e);
+  }
+
+  // 2. Post to backend server to append to vighnaharta_scores.xlsx
+  try {
+    const res = await fetch('/api/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (uiGoSyncStatusText) {
+        uiGoSyncStatusText.textContent = `✓ Recorded to Excel Database (${data.sessionId || 'vighnaharta_scores.xlsx'})`;
+      }
+      return;
+    }
+  } catch (err) {
+    console.log('Server sync offline, preserved in local browser database:', err);
+  }
+
+  if (uiGoSyncStatusText) {
+    uiGoSyncStatusText.textContent = '✓ Saved to Excel Database (Local)';
+  }
+}
+
+// --- Leaderboard & Excel Modal Logic ---
+let currentLeaderboardTab = 'campuses';
+let cachedScoresData = null;
+
+async function fetchScoresData() {
+  try {
+    const res = await fetch('/api/scores');
+    if (res.ok) {
+      cachedScoresData = await res.json();
+      return cachedScoresData;
+    }
+  } catch (err) {
+    console.log('Fetching scores from server failed, using local records');
+  }
+
+  // Fallback: build from localStorage
+  const rawDb = localStorage.getItem('vighnaharta_offline_db');
+  const sessions = rawDb ? JSON.parse(rawDb) : [];
+  
+  const campusMap = {};
+  sessions.forEach(s => {
+    if (!campusMap[s.campus]) {
+      campusMap[s.campus] = { campus: s.campus, totalDevotees: new Set(), totalScore: 0, highestScore: 0, topDevotee: s.name };
+    }
+    campusMap[s.campus].totalDevotees.add(s.name);
+    campusMap[s.campus].totalScore += s.score;
+    if (s.score > campusMap[s.campus].highestScore) {
+      campusMap[s.campus].highestScore = s.score;
+      campusMap[s.campus].topDevotee = s.name;
+    }
+  });
+
+  const campuses = Object.values(campusMap).map((c, idx) => ({
+    rank: idx + 1,
+    campus: c.campus,
+    totalDevotees: c.totalDevotees.size,
+    totalScore: c.totalScore,
+    highestScore: c.highestScore,
+    topDevotee: c.topDevotee
+  })).sort((a, b) => b.totalScore - a.totalScore);
+
+  campuses.forEach((c, idx) => c.rank = idx + 1);
+
+  cachedScoresData = { sessions, campuses };
+  return cachedScoresData;
+}
+
+function renderLeaderboardTable() {
+  if (!uiTableLeaderboardHead || !uiTableLeaderboardBody) return;
+  const data = cachedScoresData || { campuses: [], sessions: [] };
+
+  if (currentLeaderboardTab === 'campuses') {
+    uiTableLeaderboardHead.innerHTML = `
+      <tr>
+        <th style="width: 55px; text-align: center;">RANK</th>
+        <th>NIAT CAMPUS</th>
+        <th style="text-align: center;">DEVOTEES</th>
+        <th style="text-align: right;">TOTAL PUNYA</th>
+        <th style="text-align: right;">BEST SCORE</th>
+        <th>TOP DEVOTEE</th>
+      </tr>
+    `;
+
+    if (!data.campuses || data.campuses.length === 0) {
+      uiTableLeaderboardBody.innerHTML = `
+        <tr><td colspan="6" style="text-align:center; padding: 28px; color: var(--brass-mid);">
+          No campus scores recorded yet. Play a game to record the first offering in the Excel database!
+        </td></tr>
+      `;
+      return;
+    }
+
+    uiTableLeaderboardBody.innerHTML = data.campuses.map(c => {
+      const rankCls = c.rank === 1 ? 'rank-1' : (c.rank === 2 ? 'rank-2' : (c.rank === 3 ? 'rank-3' : 'rank-other'));
+      return `
+        <tr>
+          <td style="text-align: center;"><span class="rank-badge ${rankCls}">${c.rank}</span></td>
+          <td><strong style="color: var(--gold);">${c.campus}</strong></td>
+          <td style="text-align: center;">${c.totalDevotees}</td>
+          <td style="text-align: right;" class="score-text-gold">${Number(c.totalScore).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(c.highestScore).toLocaleString()}</td>
+          <td>${c.topDevotee || 'N/A'}</td>
+        </tr>
+      `;
+    }).join('');
+
+  } else {
+    // Sessions Log tab
+    uiTableLeaderboardHead.innerHTML = `
+      <tr>
+        <th>TIMESTAMP</th>
+        <th>DEVOTEE</th>
+        <th>NIAT CAMPUS</th>
+        <th style="text-align: right;">SCORE</th>
+        <th style="text-align: center;">WAVE</th>
+        <th style="text-align: center;">CLEARED</th>
+        <th style="text-align: center;">STATUS</th>
+      </tr>
+    `;
+
+    if (!data.sessions || data.sessions.length === 0) {
+      uiTableLeaderboardBody.innerHTML = `
+        <tr><td colspan="7" style="text-align:center; padding: 28px; color: var(--brass-mid);">
+          No session history recorded yet.
+        </td></tr>
+      `;
+      return;
+    }
+
+    uiTableLeaderboardBody.innerHTML = data.sessions.slice(0, 30).map(s => `
+      <tr>
+        <td style="font-size: 0.75rem; color: #B0BEC5;">${s.timestamp}</td>
+        <td><strong>${s.name}</strong></td>
+        <td style="font-size: 0.8rem; color: #FFE082;">${s.campus}</td>
+        <td style="text-align: right;" class="score-text-gold">${Number(s.score).toLocaleString()}</td>
+        <td style="text-align: center;">Wave ${s.wave}</td>
+        <td style="text-align: center;">${s.cleared}</td>
+        <td style="text-align: center; font-size: 0.75rem; color: #81C784;">${s.status || 'Completed'}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+async function openLeaderboardModal(tab = 'campuses') {
+  currentLeaderboardTab = tab;
+  if (uiTabBtnCampuses) uiTabBtnCampuses.classList.toggle('is-active', tab === 'campuses');
+  if (uiTabBtnSessions) uiTabBtnSessions.classList.toggle('is-active', tab === 'sessions');
+  if (uiLeaderboardModal) uiLeaderboardModal.style.display = 'flex';
+  await fetchScoresData();
+  renderLeaderboardTable();
+}
+
+function closeLeaderboardModal() {
+  if (uiLeaderboardModal) uiLeaderboardModal.style.display = 'none';
+}
+
+// --- Sacred Ganesha Devotee Blessing Card Renderer (Simplified English & Tamil) ---
+function renderDevoteeCard() {
+  if (!uiDevoteeCardCanvas) return;
+  const c = uiDevoteeCardCanvas;
+  const ctx2 = c.getContext('2d');
+  const w = c.width = 960;
+  const h = c.height = 580;
+  const isTa = (cardLanguage === 'ta');
+
+  // 1. Devotional Midnight Indigo / Purple Radial Gradient Background
+  const bgGrad = ctx2.createRadialGradient(w / 2, h / 2, 80, w / 2, h / 2, 540);
+  bgGrad.addColorStop(0, '#2D0A4E');
+  bgGrad.addColorStop(0.5, '#1B0530');
+  bgGrad.addColorStop(1, '#0C0116');
+  ctx2.fillStyle = bgGrad;
+  ctx2.fillRect(0, 0, w, h);
+
+  // Subtle Temple Watermark (Sacred 12-fold Lotus Ring behind Deity)
+  ctx2.save();
+  ctx2.translate(195, 290);
+  ctx2.strokeStyle = 'rgba(255, 215, 0, 0.05)';
+  ctx2.lineWidth = 1.5;
+  for (let m = 0; m < 12; m++) {
+    ctx2.rotate((Math.PI * 2) / 12);
+    ctx2.beginPath();
+    ctx2.arc(0, 75, 65, 0, Math.PI * 2);
+    ctx2.stroke();
+  }
+  ctx2.restore();
+
+  // Subtle Golden Star Dust Accents
+  ctx2.fillStyle = 'rgba(255, 215, 0, 0.35)';
+  const starDots = [
+    [70, 60], [250, 45], [480, 40], [740, 55], [890, 80],
+    [65, 520], [380, 535], [860, 515], [920, 290], [45, 290]
+  ];
+  for (const [sx, sy] of starDots) {
+    ctx2.fillRect(sx, sy, 2.5, 2.5);
+  }
+
+  // 2. Clean Dignified Golden Double Border & Corner Bosses
+  ctx2.strokeStyle = '#D4AF37';
+  ctx2.lineWidth = 3.5;
+  ctx2.strokeRect(18, 18, w - 36, h - 36);
+
+  ctx2.strokeStyle = 'rgba(255, 215, 0, 0.55)';
+  ctx2.lineWidth = 1.2;
+  ctx2.strokeRect(25, 25, w - 50, h - 50);
+
+  // 4 Corner Medallion Bosses
+  const corners = [[30, 30], [w - 30, 30], [30, h - 30], [w - 30, h - 30]];
+  for (const [cx2, cy2] of corners) {
+    ctx2.strokeStyle = '#FFD700';
+    ctx2.lineWidth = 1.5;
+    ctx2.beginPath();
+    ctx2.arc(cx2, cy2, 12, 0, Math.PI * 2);
+    ctx2.stroke();
+    ctx2.fillStyle = '#C62828';
+    ctx2.beginPath();
+    ctx2.arc(cx2, cy2, 4, 0, Math.PI * 2);
+    ctx2.fill();
+  }
+
+  // Top Marigold Torana Flower Garland
+  const flowerCount = 26;
+  const flowerStep = (w - 70) / flowerCount;
+  for (let f = 0; f <= flowerCount; f++) {
+    const fx = 35 + f * flowerStep;
+    ctx2.fillStyle = f % 2 === 0 ? '#FFC107' : '#FF6B00';
+    ctx2.beginPath();
+    ctx2.arc(fx, 25, 4.5, 0, Math.PI * 2);
+    ctx2.fill();
+  }
+
+  // 3. Left Side: Sacred Deity Portrait & Medallion
+  const medX = 195;
+  const medY = 290;
+  const medR = 112;
+
+  // Divine Golden Aura Glow
+  const haloGrad = ctx2.createRadialGradient(medX, medY, medR * 0.7, medX, medY, medR * 1.45);
+  haloGrad.addColorStop(0, 'rgba(255, 215, 0, 0.38)');
+  haloGrad.addColorStop(0.6, 'rgba(255, 107, 0, 0.12)');
+  haloGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+  ctx2.fillStyle = haloGrad;
+  ctx2.beginPath();
+  ctx2.arc(medX, medY, medR * 1.45, 0, Math.PI * 2);
+  ctx2.fill();
+
+  // Brass & Gold Medallion Rim
+  ctx2.strokeStyle = '#D4AF37';
+  ctx2.lineWidth = 5;
+  ctx2.beginPath();
+  ctx2.arc(medX, medY, medR, 0, Math.PI * 2);
+  ctx2.stroke();
+
+  ctx2.strokeStyle = '#FFE082';
+  ctx2.lineWidth = 1.5;
+  ctx2.beginPath();
+  ctx2.arc(medX, medY, medR - 4, 0, Math.PI * 2);
+  ctx2.stroke();
+
+  // Golden Sacred Dots around Medallion
+  ctx2.fillStyle = '#FFD700';
+  for (let d = 0; d < 20; d++) {
+    const a = (d / 20) * Math.PI * 2;
+    ctx2.beginPath();
+    ctx2.arc(medX + Math.cos(a) * (medR - 9), medY + Math.sin(a) * (medR - 9), 2.2, 0, Math.PI * 2);
+    ctx2.fill();
+  }
+
+  // Draw Ganesha Sacred Portrait Inside Medallion
+  ctx2.save();
+  ctx2.beginPath();
+  ctx2.arc(medX, medY, medR - 13, 0, Math.PI * 2);
+  ctx2.clip();
+  if (ganeshaImg && ganeshaImg.complete && ganeshaImg.naturalWidth > 0) {
+    const imgSize = (medR - 13) * 2;
+    ctx2.drawImage(ganeshaImg, medX - imgSize / 2, medY - imgSize / 2, imgSize, imgSize);
+  } else {
+    ctx2.fillStyle = '#FFD700';
+    ctx2.font = 'bold 72px "Tiro Devanagari Hindi", serif';
+    ctx2.textAlign = 'center';
+    ctx2.textBaseline = 'middle';
+    ctx2.fillText('ॐ', medX, medY);
+  }
+  // Soft warm tint overlay
+  ctx2.fillStyle = 'rgba(255, 215, 0, 0.08)';
+  ctx2.fillRect(medX - medR, medY - medR, medR * 2, medR * 2);
+  ctx2.restore();
+
+  // Lotus Base under Medallion
+  ctx2.fillStyle = '#FFC107';
+  ctx2.beginPath();
+  ctx2.ellipse(medX, medY + medR + 5, 42, 9, 0, 0, Math.PI * 2);
+  ctx2.fill();
+
+  // 4. Right Side: Clear, Dignified Devotee Certificate Details
+  const contentX = 585;
+  ctx2.textAlign = 'center';
+
+  // --- Zone A: Sacred Header ---
+  ctx2.fillStyle = '#FFB300';
+  if (isTa) {
+    ctx2.font = 'bold 22px "Mukta Malar", sans-serif';
+    ctx2.fillText('॥ ஓம் ஸ்ரீ கணேசாய நமஹ ॥', contentX, 72);
+  } else {
+    ctx2.font = 'bold 20px "Tiro Devanagari Hindi", serif';
+    ctx2.fillText('॥ श्री गणेशाय नमः ॥', contentX, 72);
+  }
+
+  ctx2.fillStyle = '#FFD700';
+  ctx2.shadowColor = 'rgba(255, 215, 0, 0.35)';
+  ctx2.shadowBlur = 8;
+  if (isTa) {
+    ctx2.font = 'bold 28px "Mukta Malar", sans-serif';
+    ctx2.fillText('விநாயகர் அருளாசி அட்டை', contentX, 110);
+  } else {
+    ctx2.font = '900 27px "Cinzel Decorative", "Outfit", serif';
+    ctx2.fillText('GANESHA DEVOTEE CARD', contentX, 110);
+  }
+  ctx2.shadowBlur = 0;
+
+  ctx2.fillStyle = '#FFE082';
+  if (isTa) {
+    ctx2.font = '600 13px "Mukta Malar", sans-serif';
+    ctx2.fillText('விக்னஹர்த்தா பெருவிழா • 2026', contentX, 136);
+  } else {
+    ctx2.font = '600 12px "Outfit", sans-serif';
+    ctx2.fillText('VIGHNAHARTA MAHOTSAV • 2026', contentX, 136);
+  }
+
+  // Golden Divider Line with Central Sacred ॐ
+  ctx2.strokeStyle = 'rgba(212, 175, 55, 0.6)';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.moveTo(contentX - 210, 154);
+  ctx2.lineTo(contentX - 25, 154);
+  ctx2.moveTo(contentX + 25, 154);
+  ctx2.lineTo(contentX + 210, 154);
+  ctx2.stroke();
+  ctx2.fillStyle = '#FFD700';
+  ctx2.font = '16px "Tiro Devanagari Hindi", serif';
+  ctx2.fillText('ॐ', contentX, 159);
+
+  // --- Zone B: Devotee Information ---
+  ctx2.fillStyle = 'rgba(255, 248, 225, 0.85)';
+  if (isTa) {
+    ctx2.font = '600 14px "Mukta Malar", sans-serif';
+    ctx2.fillText('அருள் பெரும் பக்தர்:', contentX, 192);
+  } else {
+    ctx2.font = 'italic 13.5px "Outfit", sans-serif';
+    ctx2.fillText('Presented with sacred blessings to:', contentX, 192);
+  }
+
+  const devoteeName = (currentDevotee.name || (isTa ? 'அன்பர்' : 'Sacred Devotee')).toUpperCase();
+  ctx2.fillStyle = '#FFE57F';
+  ctx2.font = '900 32px "Outfit", "Mukta Malar", sans-serif';
+  ctx2.shadowColor = '#000000';
+  ctx2.shadowBlur = 6;
+  ctx2.fillText(devoteeName, contentX, 235);
+  ctx2.shadowBlur = 0;
+
+  // Decorative Accent Underline
+  ctx2.fillStyle = '#C62828';
+  ctx2.fillRect(contentX - 130, 247, 260, 2.5);
+  ctx2.fillStyle = '#FFD700';
+  ctx2.fillRect(contentX - 25, 246, 50, 4.5);
+
+  // Campus Badge Pill
+  const rawCampus = currentDevotee.campus || 'NIAT - Partner Campus';
+  const campusText = rawCampus;
+  ctx2.font = 'bold 13.5px "Outfit", "Mukta Malar", sans-serif';
+  const campusBadgeW = Math.min(480, Math.max(260, ctx2.measureText(campusText).width + 48));
+  const campusBadgeH = 30;
+  const badgeX = contentX - campusBadgeW / 2;
+  const badgeY = 265;
+
+  ctx2.fillStyle = 'rgba(255, 107, 0, 0.2)';
+  ctx2.strokeStyle = '#D4AF37';
+  ctx2.lineWidth = 1.2;
+  ctx2.beginPath();
+  ctx2.roundRect(badgeX, badgeY, campusBadgeW, campusBadgeH, 6);
+  ctx2.fill();
+  ctx2.stroke();
+
+  ctx2.fillStyle = '#FFE082';
+  ctx2.fillText(campusText, contentX, badgeY + 20);
+
+  // --- Zone C: Sacred Verse & Blessing (Clean 2+2 lines) ---
+  if (isTa) {
+    // Revered Tamil Vinayagar Agaval by Avvaiyar
+    ctx2.fillStyle = '#FFD700';
+    ctx2.font = 'bold 15.5px "Mukta Malar", sans-serif';
+    ctx2.fillText('ஐந்து கரத்தனை ஆனை முகத்தனை', contentX, 332);
+    ctx2.fillText('இந்தின் இளம்பிறை போலும் எயிற்றனை நந்தி மகன்தனைப் போற்றுகின்றோமே ॥', contentX, 356);
+
+    ctx2.fillStyle = 'rgba(255, 248, 225, 0.9)';
+    ctx2.font = '13.5px "Mukta Malar", sans-serif';
+    ctx2.fillText('முழுமுதற் கடவுள் விநாயகர் உங்கள் வாழ்வில் உள்ள தடைகளை நீக்கி,', contentX, 396);
+    ctx2.fillText('நல்வாழ்வும், கல்வி ஞானமும், மங்கல வெற்றியும் தந்தருள்வாராக.', contentX, 418);
+  } else {
+    // Celebrated Sanskrit Shloka & English Blessing
+    ctx2.fillStyle = '#FFD700';
+    ctx2.font = 'italic 15.5px "Tiro Devanagari Hindi", serif';
+    ctx2.fillText('वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ ।', contentX, 332);
+    ctx2.fillText('निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥', contentX, 356);
+
+    ctx2.fillStyle = 'rgba(255, 248, 225, 0.9)';
+    ctx2.font = '13px "Outfit", sans-serif';
+    ctx2.fillText('May Lord Vighnaharta dissolve all obstacles and bestow divine wisdom,', contentX, 396);
+    ctx2.fillText('peace, prosperity, and auspicious success in all your journeys.', contentX, 418);
+  }
+
+  // --- Zone D: Footer (Punya Score, Date, Temple Seal) ---
+  const footerY = 485;
+  const displayScore = Math.max(score, bestScore);
+
+  // 1. Punya Badge Box
+  ctx2.fillStyle = 'rgba(212, 175, 55, 0.16)';
+  ctx2.strokeStyle = '#D4AF37';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.roundRect(400, footerY - 18, 140, 42, 6);
+  ctx2.fill();
+  ctx2.stroke();
+
+  ctx2.fillStyle = '#FFC107';
+  ctx2.font = isTa ? 'bold 11px "Mukta Malar", sans-serif' : 'bold 10.5px "Outfit", sans-serif';
+  ctx2.fillText(isTa ? 'புண்ணியம்' : 'SACRED PUNYA', 470, footerY - 2);
+
+  ctx2.fillStyle = '#FFFFFF';
+  ctx2.font = 'bold 16px "Outfit", sans-serif';
+  ctx2.fillText(displayScore.toLocaleString(), 470, footerY + 16);
+
+  // 2. Date & Tithi
+  const today = new Date();
+  const dateStr = today.toLocaleDateString(isTa ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  ctx2.fillStyle = '#B0BEC5';
+  ctx2.font = isTa ? '12px "Mukta Malar", sans-serif' : '11.5px "Outfit", sans-serif';
+  ctx2.fillText(isTa ? `தேதி: ${dateStr}` : `Dated: ${dateStr}`, 630, footerY - 2);
+
+  ctx2.fillStyle = '#FFE082';
+  ctx2.font = isTa ? 'italic 12px "Mukta Malar", sans-serif' : 'italic 11.5px "Tiro Devanagari Hindi", serif';
+  ctx2.fillText(isTa ? 'விநாயகர் சதுர்த்தி திருநாள்' : 'भाद्रपद शुक्ल चतुर्थी महोत्सव', 630, footerY + 15);
+
+  // 3. Circular Temple Seal
+  const sealX = 795;
+  const sealY = footerY;
+  const sealR = 28;
+
+  ctx2.save();
+  ctx2.translate(sealX, sealY);
+  ctx2.strokeStyle = '#D4AF37';
+  ctx2.lineWidth = 1.8;
+  ctx2.beginPath();
+  ctx2.arc(0, 0, sealR, 0, Math.PI * 2);
+  ctx2.stroke();
+
+  ctx2.strokeStyle = '#FFD700';
+  ctx2.lineWidth = 0.9;
+  ctx2.beginPath();
+  ctx2.arc(0, 0, sealR - 3.5, 0, Math.PI * 2);
+  ctx2.stroke();
+
+  ctx2.fillStyle = '#FFD700';
+  ctx2.font = 'bold 15px "Tiro Devanagari Hindi", serif';
+  ctx2.fillText('ॐ', 0, 5);
+
+  ctx2.font = isTa ? 'bold 6.5px "Mukta Malar", sans-serif' : 'bold 6.5px "Outfit", sans-serif';
+  ctx2.fillStyle = '#FFE082';
+  ctx2.fillText(isTa ? '★ விக்னஹர்த்தா ★' : '★ VIGHNAHARTA ★', 0, -sealR + 9);
+  ctx2.fillText(isTa ? 'கோயில் முத்திரை' : 'TEMPLE SEAL', 0, sealR - 7);
+  ctx2.restore();
+}
+
+function openDevoteeCardModal() {
+  if (!currentDevotee.name || !currentDevotee.campus) {
+    openRegistrationModal(true);
+    return;
+  }
+  renderDevoteeCard();
+  if (uiDevoteeCardModal) uiDevoteeCardModal.style.display = 'flex';
+}
+
+function closeDevoteeCardModal() {
+  if (uiDevoteeCardModal) uiDevoteeCardModal.style.display = 'none';
+}
+
+function downloadDevoteeCardImage() {
+  if (!uiDevoteeCardCanvas) return;
+  renderDevoteeCard();
+  const safeName = (currentDevotee.name || 'Devotee').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const langSuffix = cardLanguage === 'ta' ? 'Tamil' : 'English';
+  const link = document.createElement('a');
+  link.download = `Ganesha_Devotee_Card_${safeName}_${langSuffix}.png`;
+  link.href = uiDevoteeCardCanvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 // --- Procedural Temple Audio Engine (Web Audio API) ---
@@ -2163,6 +2803,11 @@ function updateDiyasHUD() {
 
 // --- Game Loop Lifecycle ---
 function startGame() {
+  if (!currentDevotee.name || !currentDevotee.campus) {
+    openRegistrationModal(false);
+    return;
+  }
+
   initAudio();
   if (soundEnabled) {
     startTempleDrone();
@@ -2191,6 +2836,7 @@ function startGame() {
   autoActive = 0;
   flashAlpha = 0;
 
+  updateDevoteeUI();
   updateHUDScore();
   updateHUDAura();
   updateDiyasHUD();
@@ -2230,6 +2876,13 @@ function gameOver() {
       });
     }
   }
+
+  // Populate Devotee Details on Game Over screen
+  if (uiGoDevoteeName) uiGoDevoteeName.textContent = currentDevotee.name || 'Devotee';
+  if (uiGoDevoteeCampus) uiGoDevoteeCampus.textContent = currentDevotee.campus || 'NIAT Campus';
+
+  // Save session record to physical Excel database & local storage
+  recordScoreToDatabase(score, wave, obstaclesCleared, bestCombo, blessings);
 
   // Populate Game Over screen stats
   if (uiGoScore) uiGoScore.textContent = score.toLocaleString();
@@ -2436,6 +3089,110 @@ if (uiBtnAudioToggle) {
     }
     if (uiAudioIcon) uiAudioIcon.textContent = soundEnabled ? '🔔' : '🔕';
     if (uiAudioStatusText) uiAudioStatusText.textContent = soundEnabled ? 'BELLS: ON' : 'BELLS: OFF';
+  });
+}
+
+// Devotee Profile & Registration Modal Listeners
+if (uiBtnSwitchDevotee) {
+  uiBtnSwitchDevotee.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openRegistrationModal(true);
+  });
+}
+
+if (uiTitleDevoteeCard) {
+  uiTitleDevoteeCard.addEventListener('click', (e) => {
+    if (!e.target.closest('#btnSwitchDevotee')) {
+      openRegistrationModal(true);
+    }
+  });
+}
+
+if (uiBtnSaveRegistration) {
+  uiBtnSaveRegistration.addEventListener('click', () => {
+    if (saveDevoteeProfile()) {
+      // Profile saved successfully
+    }
+  });
+}
+
+if (uiBtnCancelRegistration) {
+  uiBtnCancelRegistration.addEventListener('click', closeRegistrationModal);
+}
+
+// Leaderboard & Excel Modal Listeners
+if (uiBtnOpenLeaderboard) {
+  uiBtnOpenLeaderboard.addEventListener('click', () => openLeaderboardModal('campuses'));
+}
+
+if (uiBtnGoLeaderboard) {
+  uiBtnGoLeaderboard.addEventListener('click', () => openLeaderboardModal('campuses'));
+}
+
+if (uiBtnCloseLeaderboard) {
+  uiBtnCloseLeaderboard.addEventListener('click', closeLeaderboardModal);
+}
+
+if (uiTabBtnCampuses) {
+  uiTabBtnCampuses.addEventListener('click', () => {
+    currentLeaderboardTab = 'campuses';
+    uiTabBtnCampuses.classList.add('is-active');
+    if (uiTabBtnSessions) uiTabBtnSessions.classList.remove('is-active');
+    renderLeaderboardTable();
+  });
+}
+
+if (uiTabBtnSessions) {
+  uiTabBtnSessions.addEventListener('click', () => {
+    currentLeaderboardTab = 'sessions';
+    uiTabBtnSessions.classList.add('is-active');
+    if (uiTabBtnCampuses) uiTabBtnCampuses.classList.remove('is-active');
+    renderLeaderboardTable();
+  });
+}
+
+if (uiBtnCloseLeaderboardBottom) {
+  uiBtnCloseLeaderboardBottom.addEventListener('click', closeLeaderboardModal);
+}
+
+// Devotee Card Modal Listeners
+if (uiBtnOpenDevoteeCard) {
+  uiBtnOpenDevoteeCard.addEventListener('click', openDevoteeCardModal);
+}
+
+if (uiBtnGoDevoteeCard) {
+  uiBtnGoDevoteeCard.addEventListener('click', openDevoteeCardModal);
+}
+
+if (uiBtnCloseDevoteeCard) {
+  uiBtnCloseDevoteeCard.addEventListener('click', closeDevoteeCardModal);
+}
+
+if (uiBtnCloseCardBottom) {
+  uiBtnCloseCardBottom.addEventListener('click', closeDevoteeCardModal);
+}
+
+if (uiBtnDownloadCardPng) {
+  uiBtnDownloadCardPng.addEventListener('click', downloadDevoteeCardImage);
+}
+
+if (uiBtnCardLangEn) {
+  uiBtnCardLangEn.addEventListener('click', () => {
+    cardLanguage = 'en';
+    uiBtnCardLangEn.classList.add('is-active');
+    if (uiBtnCardLangTa) uiBtnCardLangTa.classList.remove('is-active');
+    if (uiCardModalSubtitle) uiCardModalSubtitle.textContent = 'Personalized Sacred Blessing Certificate';
+    renderDevoteeCard();
+  });
+}
+
+if (uiBtnCardLangTa) {
+  uiBtnCardLangTa.addEventListener('click', () => {
+    cardLanguage = 'ta';
+    uiBtnCardLangTa.classList.add('is-active');
+    if (uiBtnCardLangEn) uiBtnCardLangEn.classList.remove('is-active');
+    if (uiCardModalSubtitle) uiCardModalSubtitle.textContent = 'தனிப்பயனாக்கப்பட்ட விநாயகர் அருளாசி அட்டை';
+    renderDevoteeCard();
   });
 }
 
@@ -2700,6 +3457,13 @@ function gameLoop(timestamp) {
 
 // Initialize & Launch
 initAmbient();
+updateDevoteeUI();
+
+// Check if user has already registered
+if (!currentDevotee.name || !currentDevotee.campus) {
+  setTimeout(() => openRegistrationModal(false), 500);
+}
+
 requestAnimationFrame(gameLoop);
 
 })();

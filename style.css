@@ -780,3 +780,608 @@ html, body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================
+   Devotee & Scoreboard UI (Clean, Spacious & Elegant)
+   ============================================================ */
+
+/* Sleek Compact Devotee Pill on Title Screen */
+.devotee-compact-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(35, 10, 55, 0.75);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 20px;
+  padding: 6px 14px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  max-width: 90%;
+}
+
+.devotee-compact-pill:hover {
+  border-color: var(--gold);
+  background: rgba(45, 15, 70, 0.85);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+}
+
+.pill-symbol {
+  font-size: 0.95rem;
+  color: var(--gold);
+}
+
+.pill-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+
+.pill-sep {
+  color: rgba(255, 215, 0, 0.4);
+}
+
+.pill-campus {
+  color: #FFE082;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.btn-pill-edit {
+  background: transparent;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.btn-pill-edit:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* Compact Best Score Display */
+.score-compact-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-family: var(--font-title);
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
+}
+
+.score-compact-lbl {
+  color: var(--brass-mid);
+  font-size: 0.75rem;
+}
+
+.score-compact-val {
+  color: var(--gold);
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+/* Clean Horizontal Secondary Actions Row */
+.title-action-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.btn-card-special {
+  background: linear-gradient(180deg, rgba(255, 107, 0, 0.22) 0%, rgba(140, 99, 20, 0.35) 100%) !important;
+  border-color: var(--gold) !important;
+  color: var(--gold) !important;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
+}
+
+.btn-card-special:hover {
+  background: linear-gradient(180deg, rgba(255, 107, 0, 0.38) 0%, rgba(212, 175, 55, 0.5) 100%) !important;
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.4) !important;
+}
+
+/* In-Game HUD Devotee Tag */
+.hud-player-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--cream);
+  background: rgba(26, 5, 51, 0.85);
+  border: 1px solid var(--brass-mid);
+  padding: 4px 14px;
+  border-radius: 14px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.5px;
+}
+
+.hud-player-symbol {
+  color: var(--gold);
+}
+
+.hud-sep {
+  color: var(--saffron);
+}
+
+/* Game Over Devotee Banner */
+.go-devotee-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.go-devotee-label {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--brass-mid);
+}
+
+.go-devotee-name {
+  font-family: var(--font-title);
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+
+.go-devotee-campus {
+  font-size: 0.85rem;
+  color: #FFE082;
+}
+
+.gameover-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.gameover-sub-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* Ganesha Devotee Card Modal Styles */
+.modal-card-cardpreview {
+  max-width: 820px;
+  width: 95%;
+}
+
+/* Card Language Selector Bar */
+.card-lang-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.lang-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brass-light);
+  letter-spacing: 1px;
+}
+
+.lang-buttons {
+  display: inline-flex;
+  background: rgba(15, 3, 25, 0.85);
+  border: 1px solid var(--brass-mid);
+  border-radius: 20px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.btn-lang {
+  background: transparent;
+  border: none;
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-lang.is-active {
+  background: linear-gradient(180deg, var(--saffron) 0%, var(--vermillion) 100%);
+  color: #FFF;
+  box-shadow: 0 0 10px rgba(255, 107, 0, 0.4);
+}
+
+.devotee-card-render-box {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1.5px solid var(--brass-mid);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85);
+  background: #0D0218;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.devotee-card-render-box canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 65vh;
+  object-fit: contain;
+}
+
+.devotee-card-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-card-download {
+  padding: 11px 24px !important;
+  font-size: 0.95rem !important;
+}
+
+.modal-simple-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ============================================================
+   Modal System (Registration & Leaderboard)
+   ============================================================ */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 2, 20, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 16px;
+}
+
+.modal-card {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  background: linear-gradient(180deg, #240938 0%, #150324 100%);
+  border: 2px solid var(--brass-mid);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9), 0 0 30px rgba(212, 175, 55, 0.25);
+  animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-card-wide {
+  max-width: 760px;
+}
+
+.modal-card-cardpreview {
+  max-width: 880px;
+  width: 95vw;
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.92) translateY(15px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-decor-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--marigold), var(--saffron), var(--vermillion), var(--saffron), var(--marigold));
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.modal-flourish {
+  font-size: 1.8rem;
+}
+
+.modal-title {
+  font-family: var(--font-title);
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.modal-subtitle {
+  font-size: 0.8rem;
+  color: var(--brass-light);
+  opacity: 0.9;
+}
+
+.btn-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--brass-mid);
+  color: var(--gold);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: var(--vermillion);
+  color: #FFF;
+  transform: rotate(90deg);
+}
+
+/* Registration Form */
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.required-star {
+  color: var(--vermillion);
+}
+
+.optional-tag {
+  font-size: 0.68rem;
+  color: #B0BEC5;
+  font-weight: normal;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(15, 3, 25, 0.9);
+  border: 1.5px solid var(--brass-dark);
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+  background: rgba(25, 5, 40, 0.95);
+}
+
+.form-select option,
+.form-select optgroup {
+  background: #1A0533;
+  color: #FFF8E1;
+}
+
+.modal-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+.btn-modal-submit {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 1rem;
+}
+
+/* Leaderboard Tabs & Tables */
+.leaderboard-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  padding-bottom: 8px;
+}
+
+.leaderboard-tab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  color: var(--cream);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+}
+
+.leaderboard-tab-btn.is-active {
+  background: linear-gradient(180deg, rgba(255, 107, 0, 0.35) 0%, rgba(212, 175, 55, 0.2) 100%);
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.leaderboard-content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 250px;
+  max-height: 420px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 8px;
+  background: rgba(15, 2, 25, 0.7);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.temple-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.temple-table th {
+  background: linear-gradient(180deg, #381504 0%, #200802 100%);
+  color: var(--gold);
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-size: 0.75rem;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--brass-mid);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.temple-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.12);
+  color: var(--cream);
+}
+
+.temple-table tr:hover {
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 900;
+  font-size: 0.8rem;
+  border: 1px solid var(--brass-mid);
+}
+
+.rank-1 { background: var(--gold); color: #1A0533; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6); }
+.rank-2 { background: #E0E0E0; color: #1A0533; }
+.rank-3 { background: #CD7F32; color: #FFF; }
+.rank-other { background: rgba(255, 255, 255, 0.08); color: var(--brass-light); }
+
+.score-text-gold {
+  color: var(--gold);
+  font-weight: 800;
+  font-family: var(--font-ui);
+}
+
+.modal-db-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(212, 175, 55, 0.25);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.db-source-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #B0BEC5;
+}
+
+.db-dot {
+  width: 8px;
+  height: 8px;
+  background: #4CAF50;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #4CAF50;
+}
+
+.db-source-badge code {
+  color: var(--gold);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.modal-db-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 8px 14px !important;
+  font-size: 0.78rem !important;
+}
+

@@ -7,10 +7,10 @@
   <meta name="description" content="A Traditional Indian Devotional Pixel-Art Arcade game celebrating Ganesh Chaturthi. Tap dark vighnas to invoke Lord Ganesha's sacred golden blessings.">
   <meta name="theme-color" content="#1A0533">
   
-  <!-- Traditional & Modern Typography -->
+  <!-- Traditional & Modern Typography (English, Hindi, Tamil) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Outfit:wght@400;600;700;900&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Mukta+Malar:wght@400;600;700;800&family=Outfit:wght@400;600;700;900&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="style.css">
 </head>
@@ -135,8 +135,14 @@
       </div>
     </div>
 
-    <!-- Bottom-Center: Wave Badge -->
+    <!-- Bottom-Center: Wave Badge & Devotee Tag -->
     <div class="hud-bottom">
+      <div class="hud-player-tag" id="hudPlayerTag">
+        <span class="hud-player-symbol">🕉️</span>
+        <span id="hudPlayerName">Devotee</span>
+        <span class="hud-sep">•</span>
+        <span id="hudPlayerCampus">NIAT Campus</span>
+      </div>
       <div class="wave-badge" id="hudWaveBadge">
         <span class="wave-ornament-left">✦</span>
         <span id="hudWaveText">WAVE I</span>
@@ -178,20 +184,37 @@
         </div>
       </div>
 
-      <!-- Best Score Brass Plaque -->
-      <div class="brass-plaque best-score-plaque" id="titleBestPlaque">
-        <span class="plaque-label">SACRED BEST SCORE</span>
-        <span class="plaque-value" id="titleBestScore">0</span>
+      <!-- Compact Elegant Devotee Pill -->
+      <div class="devotee-compact-pill" id="titleDevoteeCard" title="Click to Change Devotee Profile">
+        <span class="pill-symbol">🕉️</span>
+        <span class="pill-name" id="titleDevoteeName">Devotee</span>
+        <span class="pill-sep">•</span>
+        <span class="pill-campus" id="titleDevoteeCampus">NIAT Campus</span>
+        <button id="btnSwitchDevotee" class="btn-pill-edit" title="Switch Devotee / Change Campus">✏️</button>
       </div>
 
-      <!-- Action Buttons -->
+      <!-- Compact Best Score -->
+      <div class="score-compact-pill">
+        <span class="score-compact-lbl">SACRED BEST:</span>
+        <span class="score-compact-val" id="titleBestScore">0</span>
+      </div>
+
+      <!-- Action Buttons (Spacious & Clean) -->
       <div class="title-actions">
         <button id="btnPlay" class="btn-traditional btn-play">
           <span class="btn-glow"></span>
           <span class="btn-text">PLAY</span>
         </button>
 
-        <div class="secondary-actions">
+        <div class="title-action-row">
+          <button id="btnOpenLeaderboard" class="btn-secondary" title="View Campus Scoreboard">
+            <span>🏆</span>
+            <span>SCOREBOARD</span>
+          </button>
+          <button id="btnOpenDevoteeCard" class="btn-secondary btn-card-special" title="View & Download Personalized Ganesha Devotee Card">
+            <span>🪔</span>
+            <span>DEVOTEE CARD</span>
+          </button>
           <button id="btnAudioToggle" class="btn-secondary" title="Toggle Temple Audio">
             <span id="audioIcon">🔔</span>
             <span id="audioStatusText">BELLS: ON</span>
@@ -221,6 +244,13 @@
         ✨ NEW BEST SCORE ✨
       </div>
 
+      <!-- Devotee & Campus Summary -->
+      <div class="go-devotee-banner" id="goDevoteeBanner">
+        <span class="go-devotee-label">SACRED OFFERING BY:</span>
+        <span class="go-devotee-name" id="goDevoteeName">Devotee</span>
+        <span class="go-devotee-campus" id="goDevoteeCampus">NIAT Campus</span>
+      </div>
+
       <!-- Score Card Plaque -->
       <div class="brass-card stats-card">
         <div class="stat-highlight">
@@ -248,17 +278,197 @@
         </div>
       </div>
 
-      <!-- Play Again Action -->
-      <button id="btnRestart" class="btn-traditional btn-play">
-        <span class="btn-glow"></span>
-        <span class="btn-text">PLAY AGAIN</span>
-      </button>
+      <!-- Game Over Action Buttons -->
+      <div class="gameover-actions">
+        <button id="btnRestart" class="btn-traditional btn-play">
+          <span class="btn-glow"></span>
+          <span class="btn-text">PLAY AGAIN</span>
+        </button>
+
+        <div class="gameover-sub-actions">
+          <button id="btnGoLeaderboard" class="btn-secondary" title="View Campus Scoreboard">
+            <span>🏆</span>
+            <span>SCOREBOARD</span>
+          </button>
+          <button id="btnGoDevoteeCard" class="btn-secondary btn-card-special" title="Download your Ganesha Devotee Card">
+            <span>🪔</span>
+            <span>DEVOTEE CARD</span>
+          </button>
+        </div>
+      </div>
 
       <footer class="gameover-footer">
         गणपति बप्पा मोरया 🙏
       </footer>
     </div>
   </section>
+
+  <!-- DEVOTEE REGISTRATION MODAL -->
+  <div id="registrationModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="regModalTitle">
+    <div class="modal-card brass-card">
+      <div class="modal-decor-top"></div>
+      <div class="modal-header">
+        <div class="modal-flourish">🪔</div>
+        <div>
+          <h2 class="modal-title" id="regModalTitle">DEVOTEE REGISTRATION</h2>
+          <div class="modal-subtitle">खिलाड़ी पंजीकरण • Enter your details for your Devotee Card & Scoreboard</div>
+        </div>
+      </div>
+
+      <form id="formRegistration" class="registration-form" onsubmit="return false;">
+        <div class="form-group">
+          <label for="inputDevoteeName" class="form-label">DEVOTEE NAME / आपका नाम <span class="required-star">*</span></label>
+          <input type="text" id="inputDevoteeName" class="form-input" placeholder="Enter your full name" required maxlength="45" autocomplete="name">
+        </div>
+
+        <div class="form-group">
+          <label for="selectNiatCampus" class="form-label">CHOOSE YOUR NIAT CAMPUS <span class="required-star">*</span></label>
+          <select id="selectNiatCampus" class="form-select" required>
+            <option value="" disabled selected>-- Select your NIAT Campus --</option>
+            <optgroup label="📍 Telangana / Hyderabad">
+              <option value="NIAT - Malla Reddy Vishwavidyapeeth (MRV), Hyderabad">NIAT - Malla Reddy Vishwavidyapeeth (MRV), Hyderabad</option>
+              <option value="NIAT - Aurora Deemed University, Hyderabad">NIAT - Aurora Deemed University, Hyderabad</option>
+              <option value="NIAT - Chaitanya Deemed University, Hyderabad">NIAT - Chaitanya Deemed University, Hyderabad</option>
+              <option value="NIAT - Kapil Kavuri Hub, Hyderabad">NIAT - Kapil Kavuri Hub, Hyderabad</option>
+            </optgroup>
+            <optgroup label="📍 Karnataka / Bengaluru & Mangalore">
+              <option value="NIAT - S-VYASA School of Advanced Studies, Bengaluru">NIAT - S-VYASA School of Advanced Studies, Bengaluru</option>
+              <option value="NIAT - St. Peter's Institute (SPIHER), Bengaluru">NIAT - St. Peter's Institute (SPIHER), Bengaluru</option>
+              <option value="NIAT - Yenepoya University, Mangalore">NIAT - Yenepoya University, Mangalore</option>
+            </optgroup>
+            <optgroup label="📍 Andhra Pradesh">
+              <option value="NIAT - Chalapathi Institute of Technology (CIT), Guntur">NIAT - Chalapathi Institute of Technology (CIT), Guntur</option>
+              <option value="NIAT - Lingaya's Institute (LIMAT), Vijayawada">NIAT - Lingaya's Institute (LIMAT), Vijayawada</option>
+              <option value="NIAT - NRI University, Vijayawada">NIAT - NRI University, Vijayawada</option>
+              <option value="NIAT - NSRIT, Visakhapatnam">NIAT - NSRIT, Visakhapatnam</option>
+              <option value="NIAT - BEST Innovation University, Anantapur">NIAT - BEST Innovation University, Anantapur</option>
+              <option value="NIAT - Annamacharya University, Kadapa">NIAT - Annamacharya University, Kadapa</option>
+            </optgroup>
+            <optgroup label="📍 Tamil Nadu & Pondicherry">
+              <option value="NIAT - Takshashila University, Chennai-Pondicherry">NIAT - Takshashila University, Chennai-Pondicherry</option>
+              <option value="NIAT - AMET University, Chennai">NIAT - AMET University, Chennai</option>
+              <option value="NIAT - B.S. Abdur Rahman Crescent Institute, Chennai">NIAT - B.S. Abdur Rahman Crescent Institute, Chennai</option>
+              <option value="NIAT - Joy University, Tirunelveli">NIAT - Joy University, Tirunelveli</option>
+            </optgroup>
+            <optgroup label="📍 Maharashtra">
+              <option value="NIAT - Ajeenkya DY Patil University, Pune">NIAT - Ajeenkya DY Patil University, Pune</option>
+              <option value="NIAT - Sanjay Ghodawat University, Kolhapur">NIAT - Sanjay Ghodawat University, Kolhapur</option>
+            </optgroup>
+            <optgroup label="📍 North & Central India">
+              <option value="NIAT - Noida International University (NIU), Greater Noida">NIAT - Noida International University (NIU), Greater Noida</option>
+              <option value="NIAT - Sanskriti University, Mathura">NIAT - Sanskriti University, Mathura</option>
+              <option value="NIAT - Vivekananda Global University (VGU), Jaipur">NIAT - Vivekananda Global University (VGU), Jaipur</option>
+              <option value="NIAT - Rabindranath Tagore University, Bhopal">NIAT - Rabindranath Tagore University, Bhopal</option>
+            </optgroup>
+            <optgroup label="🌐 Other Centres">
+              <option value="NIAT - Other / Online COE">NIAT - Other / Online COE</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="inputStudentId" class="form-label">STUDENT ID / ROLL NO. <span class="optional-tag">(OPTIONAL)</span></label>
+          <input type="text" id="inputStudentId" class="form-input" placeholder="e.g. NIAT-2024-042" maxlength="30">
+        </div>
+
+        <div class="modal-form-actions">
+          <button type="button" id="btnSaveRegistration" class="btn-traditional btn-modal-submit">
+            <span class="btn-glow"></span>
+            <span class="btn-text">ENTER SANCTUM / प्रवेश करें</span>
+          </button>
+          <button type="button" id="btnCancelRegistration" class="btn-secondary" style="display: none;">
+            CANCEL
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CAMPUS SCOREBOARD MODAL -->
+  <div id="leaderboardModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="leaderboardModalTitle">
+    <div class="modal-card modal-card-wide brass-card">
+      <div class="modal-decor-top"></div>
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-flourish">🏆</div>
+          <div>
+            <h2 class="modal-title" id="leaderboardModalTitle">TEMPLE SCOREBOARD</h2>
+            <div class="modal-subtitle">NIAT Campus Leaderboard & Sacred Offerings</div>
+          </div>
+        </div>
+        <button id="btnCloseLeaderboard" class="btn-close" title="Close Modal">✕</button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="leaderboard-tabs">
+        <button id="tabBtnCampuses" class="leaderboard-tab-btn is-active">
+          <span>🏛️</span>
+          <span>CAMPUS RANKINGS</span>
+        </button>
+        <button id="tabBtnSessions" class="leaderboard-tab-btn">
+          <span>📜</span>
+          <span>RECENT OFFERINGS</span>
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="leaderboard-content-wrapper" id="leaderboardContent">
+        <div class="table-responsive">
+          <table class="temple-table" id="tableLeaderboard">
+            <thead id="tableLeaderboardHead">
+              <!-- Dynamically populated -->
+            </thead>
+            <tbody id="tableLeaderboardBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-simple-footer">
+        <button id="btnCloseLeaderboardBottom" class="btn-secondary">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GANESHA DEVOTEE CARD MODAL -->
+  <div id="devoteeCardModal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="cardModalTitle">
+    <div class="modal-card modal-card-cardpreview brass-card">
+      <div class="modal-decor-top"></div>
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-flourish">🪔</div>
+          <div>
+            <h2 class="modal-title" id="cardModalTitle">GANESHA DEVOTEE CARD</h2>
+            <div class="modal-subtitle" id="cardModalSubtitle">Personalized Sacred Blessing Certificate</div>
+          </div>
+        </div>
+        <button id="btnCloseDevoteeCard" class="btn-close" title="Close Modal">✕</button>
+      </div>
+
+      <!-- Language Selector Bar (English & Tamil) -->
+      <div class="card-lang-bar">
+        <span class="lang-label">SELECT LANGUAGE / மொழி:</span>
+        <div class="lang-buttons">
+          <button type="button" id="btnCardLangEn" class="btn-lang is-active" title="English Card">🇬🇧 English</button>
+          <button type="button" id="btnCardLangTa" class="btn-lang" title="தமிழ் அட்டை">🪔 தமிழ் (Tamil)</button>
+        </div>
+      </div>
+
+      <!-- Interactive Canvas Card Render Preview -->
+      <div class="devotee-card-render-box">
+        <canvas id="devoteeCardCanvas" width="960" height="580"></canvas>
+      </div>
+
+      <div class="devotee-card-actions">
+        <button id="btnDownloadCardPng" class="btn-traditional btn-card-download" title="Download High Resolution Image">
+          <span class="btn-glow"></span>
+          <span class="btn-text">📥 DOWNLOAD CARD (PNG)</span>
+        </button>
+        <button id="btnCloseCardBottom" class="btn-secondary">CLOSE</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Core Game Logic -->
   <script src="game.js"></script>
