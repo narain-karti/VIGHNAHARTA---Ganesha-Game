@@ -1057,47 +1057,220 @@ function drawMandala(dt) {
 const OBS_CONFIG = {
   WISP: {
     name: 'SHADOW WISP',
-    baseSpeed: 52,
+    baseSpeed: 65, // Increased from 52
     hp: 1,
     points: 10,
     radius: 16
   },
   THORN: {
     name: 'THORN CLUSTER',
-    baseSpeed: 68,
+    baseSpeed: 85, // Increased from 68
     hp: 1,
     points: 15,
     radius: 17
   },
   STONE: {
     name: 'STONE BLOCK',
-    baseSpeed: 42,
+    baseSpeed: 52, // Increased from 42
     hp: 2,
     points: 25,
     radius: 21
   },
   SWARM: {
     name: 'DARK SWARM',
-    baseSpeed: 82,
+    baseSpeed: 100, // Increased from 82
     hp: 1,
     points: 20,
     radius: 15
   },
   BOSS: {
     name: 'MAHAVIGHNA',
-    baseSpeed: 40,
-    hp: 1, // Special logic for boss hp
+    baseSpeed: 50, // Increased from 40
+    hp: 1,
     points: 1000,
     radius: 40
   },
   ORB: {
     name: 'HEAVY ORB',
-    baseSpeed: 80,
+    baseSpeed: 100, // Increased from 80
     hp: 1,
     points: 30,
     radius: 12
   }
 };
+
+// --- Pixel Art Assets Generator ---
+const PALETTE = {
+  ' ': null, // transparent
+  'b': '#000000', // black outline
+  'd': '#330033', // dark purple (shadows)
+  'p': '#8800ff', // purple (matsarasura)
+  'm': '#ff00ff', // magenta (eyes)
+  'r': '#ff0000', // red (fire/anger)
+  'o': '#ff8800', // orange (fire)
+  'y': '#ffff00', // yellow/gold
+  'g': '#00ff00', // green (krodhasura)
+  'w': '#ffffff', // white (highlights)
+  's': '#555555', // dark stone
+  'l': '#aaaaaa', // light stone
+  'e': '#333333', // elephant dark
+  't': '#ffddaa', // tusk
+};
+
+const PIXEL_ART_DATA = {
+  WISP: [ // Matsarasura (Insect/Jealousy) - 16x16
+    "      bbbb      ",
+    "    bbppppbb    ",
+    "   bppppppppb   ",
+    "  bppppppppppb  ",
+    " bpbbppppppbbpb ",
+    " bpbmpbppbmbppb ",
+    " bpbmmbppbmmbpb ",
+    " bpbbppppppbbpb ",
+    "  bppppppppppb  ",
+    "  bppbbbbbbppb  ",
+    "   bpbwbbwbpb   ",
+    "    bpbbbbpb    ",
+    "     bppppb     ",
+    "     bppppb     ",
+    "      bbbb      ",
+    "                "
+  ],
+  THORN: [ // Krodhasura (Anger/Spikes) - 16x16
+    "       bb       ",
+    "   b   gg   b   ",
+    "   bg bggb gb   ",
+    " b  bggggggb  b ",
+    " bgbgggggggbgb  ",
+    "  bgggbbbbgggb  ",
+    " bgggbrmmrbgggb ",
+    " bgggbrmmrbgggb ",
+    "  bgggbbbbgggb  ",
+    " bgbgggggggbgb  ",
+    " b  bggggggb  b ",
+    "   bg bggb gb   ",
+    "   b   gg   b   ",
+    "       bb       ",
+    "                ",
+    "                "
+  ],
+  STONE: [ // Lobhasura (Greed/Armored) - 16x16
+    "  bbbbbbbbbbbb  ",
+    " bsllllllllssb  ",
+    " bsllyyyyllssb  ",
+    " bslyllllsylsb  ",
+    " bsllylslyllsb  ",
+    " bslslyylsllsb  ",
+    " bslyybbbyylsb  ",
+    " bslybmmmbylsb  ",
+    " bslyybbbyylsb  ",
+    " bslslyylsllsb  ",
+    " bsllylslyllsb  ",
+    " bslyllllsylsb  ",
+    " bsllyyyyllssb  ",
+    " bsllllllllssb  ",
+    "  bbbbbbbbbbbb  ",
+    "                "
+  ],
+  SWARM: [ // Analasura (Fire) - 16x16
+    "      b  b      ",
+    "     bo  ob     ",
+    "    bro  orb    ",
+    "   brrooorrb   ",
+    "   broyyyyorb   ",
+    "  broywyywyorb  ",
+    "  broywyywyorb  ",
+    "  broyyyyyorb  ",
+    "  brroyyyyorrb  ",
+    "   brroooyrrb   ",
+    "   brroooorrb   ",
+    "    brooorb    ",
+    "     broob      ",
+    "      bbb       ",
+    "       b        ",
+    "                "
+  ],
+  ORB: [ // Parashu (Axe) - 16x16
+    "       bb       ",
+    "      byyb      ",
+    "     byyyyb     ",
+    "   bbyywwyybb   ",
+    "  byyyywwyyyyb  ",
+    " byyybbwwbbyyyb ",
+    " byybyywwyybyyb ",
+    "  bbb ywwy bbb  ",
+    "      bwwb      ",
+    "      bwwb      ",
+    "      byyb      ",
+    "      byyb      ",
+    "      byyb      ",
+    "      byyb      ",
+    "       bb       ",
+    "                "
+  ],
+  BOSS: [ // Gajamukhasura (Elephant Demon) - 32x32
+    "                                ",
+    "                                ",
+    "            bbbbbbbb            ",
+    "          bbeeeeeeeebb          ",
+    "         beeeeeeeeeeeeb         ",
+    "        beeeeeeeeeeeeeeb        ",
+    "       beeeeeeeeeeeeeeeeb       ",
+    "       beeebbbbeeeebbbbeeb      ",
+    "      beeeebmmbeeeebmmbeeeb     ",
+    "      beeeebmmbeeeebmmbeeeb     ",
+    "      beeeebbbbeeeebbbbeeeb     ",
+    "     beeeeeeeeeeeeeeeeeeeeeb    ",
+    "     beeeeeeeeeeebbeeeeeeeeb    ",
+    "    bteeeeeeeeeebbbbeeeeeeeetb  ",
+    "    btteeeeeeeeeebbeeeeeeeettb  ",
+    "    btteeeeeeeeeeeeeeeeeeeettb  ",
+    "    btteeeeeeeeebeebeeeeeeettb  ",
+    "    bwteeeeeeeeebeebeeeeeeetwb  ",
+    "    bwteebbeeeeebeebeeeeebbetwb ",
+    "    bwteb  beeeebeebeeeeb  betwb ",
+    "     bwb   beeeebeebeeeeb   bwb ",
+    "     bb    beeeebeebeeeeb    bb ",
+    "           beeeebeebeeeeb       ",
+    "           beeeeeeebeeeeb       ",
+    "            beeeeeeeeeeeb       ",
+    "            beeeeeeeeeeeb       ",
+    "             beeeeeeeeeb        ",
+    "              beeeeeeeb         ",
+    "               beeeeeb          ",
+    "                 bbb            ",
+    "                                ",
+    "                                "
+  ]
+};
+
+const pixelSprites = {};
+
+function generatePixelSprites() {
+  for (const [key, data] of Object.entries(PIXEL_ART_DATA)) {
+    const size = data.length;
+    // Scale factor for crispy pixels. 16x16 -> 64x64, 32x32 -> 128x128
+    const scale = size === 16 ? 4 : 4; 
+    const canvas = document.createElement('canvas');
+    canvas.width = size * scale; 
+    canvas.height = size * scale;
+    const pctx = canvas.getContext('2d');
+    
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const char = data[y][x];
+        if (PALETTE[char]) {
+          pctx.fillStyle = PALETTE[char];
+          pctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+    pixelSprites[key] = canvas;
+  }
+}
+// Generate them immediately on load
+generatePixelSprites();
+// ------------------------------------------
 
 function spawnObstacle() {
   let pool = ['WISP'];
@@ -1184,161 +1357,25 @@ function drawObstacles() {
     ctx.save();
     ctx.translate(o.x, o.y);
 
-    // 1. SHADOW WISP (Dark swirling smoke orb, irregular silhouette)
-    if (o.type === 'WISP') {
-      const pulse = 1 + Math.sin(o.animTime * 4) * 0.12;
-      const r = o.radius * pulse;
-
-      // Swirling smoke rings
-      ctx.strokeStyle = 'rgba(74, 20, 140, 0.4)';
-      ctx.lineWidth = 2 * dpr;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 1.25, o.rot, o.rot + Math.PI * 1.5);
-      ctx.stroke();
-
-      // Smoke body gradient
-      const wispGrad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
-      wispGrad.addColorStop(0, '#6A1B9A');
-      wispGrad.addColorStop(0.6, C.vighnaDark);
-      wispGrad.addColorStop(1, C.vighnaCore);
-      ctx.fillStyle = wispGrad;
-      ctx.shadowColor = '#9C27B0';
-      ctx.shadowBlur = 10 * dpr;
-
-      // Irregular smoke blob
-      ctx.beginPath();
-      const points = 7;
-      for (let i = 0; i <= points; i++) {
-        const a = (i / points) * Math.PI * 2;
-        const offset = Math.sin(a * 3 + o.animTime * 5) * (3 * dpr);
-        const px = Math.cos(a) * (r + offset);
-        const py = Math.sin(a) * (r + offset);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      // Subtle Indian geometric fragments inside smoke body
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
-      ctx.lineWidth = 1 * dpr;
-      ctx.strokeRect(-r * 0.25, -r * 0.25, r * 0.5, r * 0.5);
-
-      // Glowing dark core
-      ctx.fillStyle = '#E1BEE7';
-      ctx.beginPath();
-      ctx.arc(0, 0, 3.5 * dpr, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-
-    // 2. THORN CLUSTER (Dark forest green organic seed + sharp thorns + gold vein cracks)
-    else if (o.type === 'THORN') {
-      const r = o.radius;
+    // Get the sprite from our generated pixel art assets
+    const sprite = pixelSprites[o.type];
+    
+    if (sprite) {
       ctx.rotate(o.rot);
-
-      // Thorns radiating outward (6 sharp thorns)
-      ctx.fillStyle = C.thornDark;
-      ctx.strokeStyle = C.thornGreen;
-      ctx.lineWidth = 1.5 * dpr;
-      const thornCount = 6;
-      for (let i = 0; i < thornCount; i++) {
-        ctx.save();
-        ctx.rotate((i / thornCount) * Math.PI * 2);
-        ctx.beginPath();
-        ctx.moveTo(-4 * dpr, -r * 0.5);
-        ctx.lineTo(0, -r * 1.4);
-        ctx.lineTo(4 * dpr, -r * 0.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Central dark seed core
-      ctx.fillStyle = '#112F15';
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Subtle gold cracks in core
-      ctx.strokeStyle = C.gold;
-      ctx.lineWidth = 1.2 * dpr;
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.35, -r * 0.3);
-      ctx.lineTo(0, 0);
-      ctx.lineTo(r * 0.4, -r * 0.1);
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-r * 0.1, r * 0.4);
-      ctx.stroke();
-    }
-
-    // 3. STONE BLOCK (Ancient temple stone fragment + cracks + geometric engravings)
-    else if (o.type === 'STONE') {
-      const s = o.radius;
-      ctx.rotate(o.rot);
-
-      // Stone block body (octagonal chiseled block)
-      ctx.fillStyle = C.stoneDark;
-      ctx.strokeStyle = C.stoneGray;
-      ctx.lineWidth = 2 * dpr;
-      ctx.beginPath();
-      const cut = s * 0.35;
-      ctx.moveTo(-s + cut, -s);
-      ctx.lineTo(s - cut, -s);
-      ctx.lineTo(s, -s + cut);
-      ctx.lineTo(s, s - cut);
-      ctx.lineTo(s - cut, s);
-      ctx.lineTo(-s + cut, s);
-      ctx.lineTo(-s, s - cut);
-      ctx.lineTo(-s, -s + cut);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Carved Indian geometric engraving on surface
-      ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
-      ctx.lineWidth = 1 * dpr;
-      ctx.strokeRect(-s * 0.4, -s * 0.4, s * 0.8, s * 0.8);
-
-      // If damaged (1st hit): Deep glowing fissure cracks spread across stone
-      if (o.hp < o.maxHp) {
-        ctx.strokeStyle = C.gold;
-        ctx.lineWidth = 2 * dpr;
+      
+      // Flash effect if damaged (for STONE or BOSS)
+      if (o.type === 'STONE' && o.hp < o.maxHp) {
         ctx.shadowColor = C.gold;
-        ctx.shadowBlur = 8 * dpr;
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.8, -s * 0.6);
-        ctx.lineTo(-s * 0.1, -s * 0.1);
-        ctx.lineTo(s * 0.2, s * 0.4);
-        ctx.lineTo(s * 0.8, s * 0.7);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 15 * dpr;
       }
-    }
-
-    // 4. DARK SWARM (14 tiny dark-violet ethereal orbs orbiting unstable core)
-    else if (o.type === 'SWARM') {
-      ctx.fillStyle = '#7B1FA2';
-      ctx.shadowColor = '#BA68C8';
-      ctx.shadowBlur = 6 * dpr;
-
-      // Draw each orbiting micro-particle
-      for (const p of o.swarmOffsets) {
-        const a = p.angle + o.animTime * p.speed;
-        const px = Math.cos(a) * p.radius;
-        const py = Math.sin(a) * p.radius;
-        ctx.beginPath();
-        ctx.arc(px, py, p.size / 2, 0, Math.PI * 2);
-        ctx.fill();
+      if (o.type === 'BOSS' && o.hp < o.maxHp) {
+        ctx.shadowColor = C.vighnaCore;
+        ctx.shadowBlur = 20 * dpr;
       }
-      ctx.shadowBlur = 0;
 
-      // Unstable central dark nucleus
-      ctx.fillStyle = C.vighnaCore;
-      ctx.beginPath();
-      ctx.arc(0, 0, 4 * dpr, 0, Math.PI * 2);
-      ctx.fill();
+      // Draw the pixel art sprite perfectly centered
+      const drawSize = o.radius * 2.2; // Scale nicely
+      ctx.drawImage(sprite, -drawSize/2, -drawSize/2, drawSize, drawSize);
     }
 
     ctx.restore();
@@ -2041,17 +2078,16 @@ function toRoman(num) {
 }
 
 function startWave() {
-  wave++;
-  spawnInterval = Math.max(0.45, 1.9 - wave * 0.14);
+  spawnInterval = Math.max(0.3, 1.4 - wave * 0.15);
   // Spawn first obstacle quickly (0.25s) so action starts immediately
   spawnTimer = spawnInterval - 0.25;
-  waveObsCount = 8 + wave * 3;
+  waveObsCount = 12 + wave * 5;
   waveObsSpawned = 0;
   waveMisses = 0;
   state = STATE.PLAYING;
 
   if (uiHudWaveText) {
-    uiHudWaveText.textContent = `WAVE ${toRoman(wave)}`;
+    uiHudWaveText.textContent = wave === 9 ? 'MAHAVIGHNA' : `WAVE ${toRoman(wave + 1)}`;
   }
 }
 
@@ -2062,6 +2098,12 @@ function checkWaveEnd() {
     score += bonus;
     updateHUDScore();
 
+    wave++;
+    if (wave >= 10) {
+      // Boss defeated / Game complete
+      return; // Handled in boss logic
+    }
+
     emitBlessingParticles(cx, cy, 35, C.gold);
     if (waveMisses === 0) {
       addPopup(cx, cy - mandalaR * 1.8, '✨ PERFECT WAVE! +250 ✨', C.gold, 22);
@@ -2070,7 +2112,7 @@ function checkWaveEnd() {
     }
 
     state = STATE.WAVE_TRANS;
-    transTimer = 1.8;
+    transTimer = 1.0;
   }
 }
 
@@ -2255,12 +2297,12 @@ function handlePlayerTap(tapX, tapY) {
     return;
   }
 
-  // 2. Check Obstacles (target closest to tap) - ignore STONE on tap
+  // 2. Check Obstacles (target closest to tap)
   let closestIdx = -1;
   let closestDist = Infinity;
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (o.type === OBS_TYPES.STONE) continue; // Stones require swipe
+    if (o.type === 'BOSS') continue; // Boss cannot be tapped
     const dist = Math.hypot(tapX - o.x, tapY - o.y);
     if (dist < o.radius + tapR && dist < closestDist) {
       closestDist = dist;
@@ -2268,8 +2310,24 @@ function handlePlayerTap(tapX, tapY) {
     }
   }
 
-  if (closestIdx >= 0) {
-    destroyObstacle(closestIdx);
+  if (closestIdx !== -1) {
+    const o = obstacles[closestIdx];
+    if (o.type === 'ORB' && !o.isDeflected) {
+      // Deflect orb towards boss
+      let boss = obstacles.find(obs => obs.type === 'BOSS');
+      if (boss) {
+        o.isDeflected = true;
+        const targetDist = Math.hypot(boss.x - o.x, boss.y - o.y);
+        o.vx = ((boss.x - o.x) / targetDist) * OBS_TYPES['ORB'].baseSpeed * 2.5; // Fast return
+        o.vy = ((boss.y - o.y) / targetDist) * OBS_TYPES['ORB'].baseSpeed * 2.5;
+        emitBlessingParticles(o.x, o.y, 10, C.gold);
+        addPopup(o.x, o.y, 'DEFLECTED!', C.gold, 20);
+      } else {
+        destroyObstacle(closestIdx);
+      }
+    } else {
+      destroyObstacle(closestIdx);
+    }
   } else {
     // Sacred golden blessing ripple on empty tap
     impactSeals.push({
@@ -2633,22 +2691,7 @@ function gameLoop(timestamp) {
     drawPopups();
   }
 
-  // Draw Swipe Trail
-  if (swipeTrail.length > 1) {
-    ctx.beginPath();
-    ctx.moveTo(swipeTrail[0].x, swipeTrail[0].y);
-    for (let i = 1; i < swipeTrail.length; i++) {
-      ctx.lineTo(swipeTrail[i].x, swipeTrail[i].y);
-    }
-    ctx.strokeStyle = '#FFD700'; // Gold
-    ctx.lineWidth = 4 * dpr;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.shadowColor = '#FFD700';
-    ctx.shadowBlur = 10 * dpr;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
+  // (Swipe trail removed as per user feedback favoring tap mechanics)
 
   ctx.restore();
   requestAnimationFrame(gameLoop);
