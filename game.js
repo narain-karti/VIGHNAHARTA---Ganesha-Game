@@ -83,6 +83,8 @@ let obstacles = [];
 let particles = [];
 let petals = []; // falling marigold petals
 let starDust = []; // ambient golden dust
+let lanterns = []; // floating festive sky lanterns (Akash Kandils)
+let incenseSmoke = []; // fragrant sacred incense curls from sanctum
 let blessingBolts = [];
 let powerups = [];
 let textPopups = [];
@@ -94,6 +96,13 @@ let slowActive = 0;
 let autoActive = 0;
 let autoShootTimer = 0;
 let puTimer = 0;
+
+// Temple Audio & Visual Cue States
+let droneOsc1 = null, droneOsc2 = null, droneGain = null;
+let tutorialAlpha = 0;
+let firstKillDone = false;
+let ganeshaSlashArc = 0;
+let ganeshaSlashAngle = 0;
 
 // --- Ganesha Sacred Center Asset ---
 const ganeshaImg = new Image();
@@ -226,6 +235,50 @@ function playTempleBell(freq, duration = 0.8, volume = 0.2) {
 // Indian classical Raga scale notes (Bilawal / Bhairav inspired)
 const RAGA_NOTES = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50]; // C5 to C6
 
+// Continuous Meditative Indian Tanpura Drone (Sa-Pa C3 & G2)
+function startTempleDrone() {
+  if (!audioCtx || !soundEnabled || droneGain) return;
+  try {
+    const now = audioCtx.currentTime;
+    droneGain = audioCtx.createGain();
+    droneGain.gain.setValueAtTime(0.001, now);
+    droneGain.gain.exponentialRampToValueAtTime(0.035, now + 3.0); // Gentle sacred ambient swell
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(240, now);
+
+    droneOsc1 = audioCtx.createOscillator();
+    droneOsc1.type = 'sawtooth';
+    droneOsc1.frequency.setValueAtTime(130.81, now); // C3 fundamental (Sa)
+
+    droneOsc2 = audioCtx.createOscillator();
+    droneOsc2.type = 'sine';
+    droneOsc2.frequency.setValueAtTime(98.00, now); // G2 fifth (Pa)
+
+    droneOsc1.connect(filter);
+    droneOsc2.connect(filter);
+    filter.connect(droneGain);
+    droneGain.connect(audioCtx.destination);
+
+    droneOsc1.start(now);
+    droneOsc2.start(now);
+  } catch (e) {}
+}
+
+function stopTempleDrone() {
+  if (!droneGain || !audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    droneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+    setTimeout(() => {
+      if (droneOsc1) { try { droneOsc1.stop(); droneOsc1.disconnect(); } catch (e) {} droneOsc1 = null; }
+      if (droneOsc2) { try { droneOsc2.stop(); droneOsc2.disconnect(); } catch (e) {} droneOsc2 = null; }
+      if (droneGain) { try { droneGain.disconnect(); } catch (e) {} droneGain = null; }
+    }, 650);
+  } catch (e) {}
+}
+
 function sfxTapBlessing() {
   playTempleBell(880, 0.25, 0.15);
 }
@@ -239,6 +292,13 @@ function sfxDestroy(comboLevel) {
 function sfxCloseSave() {
   playTempleBell(1318.5, 1.2, 0.3); // High E6 ring
   setTimeout(() => playTempleBell(1567.98, 0.9, 0.2), 60); // High G6 resonance
+  const rack = document.getElementById('diyaRack');
+  if (rack) {
+    rack.classList.remove('diya-surge');
+    void rack.offsetWidth;
+    rack.classList.add('diya-surge');
+    setTimeout(() => { if (rack) rack.classList.remove('diya-surge'); }, 650);
+  }
 }
 
 function sfxMiss() {
@@ -281,6 +341,8 @@ function sfxGameOver() {
 function initAmbient() {
   starDust = [];
   petals = [];
+  lanterns = [];
+  incenseSmoke = [];
 
   // Floating temple golden dust
   for (let i = 0; i < 45; i++) {
@@ -310,6 +372,20 @@ function initAmbient() {
       alpha: 0.35 + Math.random() * 0.4
     });
   }
+
+  // Floating Festive Sky Lanterns (Akash Kandils)
+  for (let i = 0; i < 4; i++) {
+    lanterns.push({
+      x: (W * 0.15) + (i * (W * 0.25)) + (Math.random() - 0.5) * 60 * dpr,
+      y: Math.random() * H,
+      vy: -(8 + Math.random() * 8) * dpr,
+      size: (15 + Math.random() * 7) * dpr,
+      sway: Math.random() * Math.PI * 2,
+      swaySpeed: 1.2 + Math.random() * 0.8,
+      alpha: 0.55 + Math.random() * 0.3,
+      color: i % 2 === 0 ? '#FF9800' : '#FF5722'
+    });
+  }
 }
 
 function updateAmbient(dt) {
@@ -334,10 +410,104 @@ function updateAmbient(dt) {
       p.x = Math.random() * W;
     }
   }
+
+  // Update Festive Sky Lanterns (Akash Kandils)
+  for (let l of lanterns) {
+    l.y += l.vy * dt;
+    l.sway += l.swaySpeed * dt;
+    l.x += Math.sin(l.sway) * 10 * dt;
+    if (l.y < -60 * dpr) {
+      l.y = H + 60 * dpr;
+      l.x = Math.random() * W;
+    }
+  }
+
+  // Emit fragrant incense wisps from 4 plinth corner points
+  if (mandalaR > 0 && Math.random() > 0.45) {
+    const plinthCorner = mandalaR * 0.72;
+    const corners = [
+      { x: cx - plinthCorner, y: cy - plinthCorner },
+      { x: cx + plinthCorner, y: cy - plinthCorner },
+      { x: cx - plinthCorner, y: cy + plinthCorner },
+      { x: cx + plinthCorner, y: cy + plinthCorner }
+    ];
+    const c = corners[Math.floor(Math.random() * corners.length)];
+    incenseSmoke.push({
+      x: c.x,
+      y: c.y,
+      vx: (Math.random() - 0.5) * 8 * dpr,
+      vy: -(22 + Math.random() * 18) * dpr,
+      life: 0.9 + Math.random() * 0.4,
+      maxLife: 1.3,
+      size: (2.5 + Math.random() * 2) * dpr,
+      sway: Math.random() * Math.PI * 2
+    });
+  }
+
+  for (let i = incenseSmoke.length - 1; i >= 0; i--) {
+    const s = incenseSmoke[i];
+    s.x += s.vx * dt + Math.sin(s.sway) * 8 * dt;
+    s.y += s.vy * dt;
+    s.sway += dt * 3;
+    s.size += 6 * dt * dpr;
+    s.life -= dt;
+    if (s.life <= 0) incenseSmoke.splice(i, 1);
+  }
 }
 
 function drawAmbient() {
-  // Floating Golden Dust
+  // 1. Floating Festive Sky Lanterns (Distant Background Layer)
+  for (let l of lanterns) {
+    ctx.save();
+    ctx.translate(l.x, l.y);
+    ctx.globalAlpha = l.alpha;
+
+    // Outer lantern glow
+    const halo = ctx.createRadialGradient(0, 0, 2 * dpr, 0, 0, l.size * 1.6);
+    halo.addColorStop(0, 'rgba(255, 235, 59, 0.35)');
+    halo.addColorStop(0.5, 'rgba(255, 111, 0, 0.12)');
+    halo.addColorStop(1, 'rgba(255, 111, 0, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, l.size * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Geometric diamond lantern body (Akash Kandil)
+    ctx.fillStyle = l.color;
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, -l.size);
+    ctx.lineTo(l.size * 0.65, 0);
+    ctx.lineTo(0, l.size);
+    ctx.lineTo(-l.size * 0.65, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Inner bright candle flame
+    ctx.fillStyle = '#FFFDE7';
+    ctx.beginPath();
+    ctx.arc(0, 0, l.size * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hanging festive paper tassels swaying below
+    const tasselSway = Math.sin(l.sway * 1.5) * (3.5 * dpr);
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(-l.size * 0.3, l.size);
+    ctx.lineTo(-l.size * 0.3 + tasselSway, l.size + 13 * dpr);
+    ctx.moveTo(0, l.size);
+    ctx.lineTo(tasselSway, l.size + 17 * dpr);
+    ctx.moveTo(l.size * 0.3, l.size);
+    ctx.lineTo(l.size * 0.3 + tasselSway, l.size + 13 * dpr);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // 2. Floating Golden Dust
   for (let p of starDust) {
     const a = p.alpha * (0.8 + Math.sin(p.pulse) * 0.2);
     ctx.globalAlpha = a;
@@ -347,7 +517,7 @@ function drawAmbient() {
     ctx.fill();
   }
 
-  // Tumbling Marigold Petals
+  // 3. Tumbling Marigold Petals
   for (let p of petals) {
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -355,10 +525,19 @@ function drawAmbient() {
     ctx.globalAlpha = p.alpha;
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    // Teardrop / oval petal silhouette
     ctx.ellipse(0, 0, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  // 4. Fragrant Sacred Incense Smoke Wisps (Dhupa)
+  for (let s of incenseSmoke) {
+    const a = Math.max(0, s.life / s.maxLife) * 0.26;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(255, 248, 225, 0.85)';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
@@ -399,7 +578,28 @@ function drawBackground() {
   }
   ctx.restore();
 
-  // Subtle Sacred Geometry / Rangoli background watermark
+  // 1. Concentric Temple Courtyard Flagstones (Prakaram Stone Floor)
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.035)';
+  ctx.lineWidth = 1.2 * dpr;
+  const flagstoneRadii = [mandalaR * 1.55, mandalaR * 2.2, mandalaR * 2.9, mandalaR * 3.7, mandalaR * 4.5];
+  for (let rad of flagstoneRadii) {
+    ctx.beginPath();
+    ctx.arc(0, 0, rad, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  const flagstoneSectors = 24;
+  for (let i = 0; i < flagstoneSectors; i++) {
+    const a = (i / flagstoneSectors) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * (mandalaR * 1.55), Math.sin(a) * (mandalaR * 1.55));
+    ctx.lineTo(Math.cos(a) * (mandalaR * 4.5), Math.sin(a) * (mandalaR * 4.5));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 2. Subtle Sacred Geometry / Rangoli background watermark
   ctx.save();
   ctx.translate(cx, cy);
   ctx.strokeStyle = 'rgba(255, 215, 0, 0.04)';
@@ -412,6 +612,70 @@ function drawBackground() {
     ctx.arc(Math.cos(a) * outerR * 0.6, Math.sin(a) * outerR * 0.6, outerR * 0.45, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.restore();
+
+  // 3. Distant Gopuram & Temple Pillar Silhouettes
+  drawTempleSilhouettes();
+}
+
+function drawTempleSilhouettes() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(14, 3, 28, 0.65)';
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.08)';
+  ctx.lineWidth = 1 * dpr;
+
+  const gopW = 75 * dpr;
+  const gopH = 140 * dpr;
+  const baseY = H;
+  
+  // Left Temple Tower (Tiered Shikhara)
+  ctx.beginPath();
+  ctx.moveTo(10 * dpr, baseY);
+  ctx.lineTo(10 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(18 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(18 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(26 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(35 * dpr, baseY - gopH);
+  ctx.lineTo(44 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(52 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(52 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(60 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(60 * dpr, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Golden Kalasham on Left Spire
+  ctx.fillStyle = C.brassMid;
+  ctx.beginPath();
+  ctx.arc(35 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Right Temple Tower (Tiered Shikhara)
+  ctx.fillStyle = 'rgba(14, 3, 28, 0.65)';
+  const rightX = W - 70 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(rightX, baseY);
+  ctx.lineTo(rightX, baseY - gopH * 0.4);
+  ctx.lineTo(rightX + 8 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(rightX + 8 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(rightX + 16 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(rightX + 25 * dpr, baseY - gopH);
+  ctx.lineTo(rightX + 34 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(rightX + 42 * dpr, baseY - gopH * 0.7);
+  ctx.lineTo(rightX + 42 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(rightX + 50 * dpr, baseY - gopH * 0.4);
+  ctx.lineTo(rightX + 50 * dpr, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Golden Kalasham on Right Spire
+  ctx.fillStyle = C.brassMid;
+  ctx.beginPath();
+  ctx.arc(rightX + 25 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -433,6 +697,110 @@ function drawMandala(dt) {
   ctx.beginPath();
   ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
   ctx.fill();
+
+  // TEMPLE SANCTUM BASE: Stepped Octagonal Granite Plinth (Jagati / Adhishthana)
+  const octR = r * 1.48;
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const px = Math.cos(a) * octR;
+    const py = Math.sin(a) * octR;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(28, 12, 42, 0.88)';
+  ctx.fill();
+  ctx.strokeStyle = C.brassDark;
+  ctx.lineWidth = 3.5 * dpr;
+  ctx.stroke();
+
+  // Plinth Inner Gold Bevel
+  const octInnerR = r * 1.38;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const px = Math.cos(a) * octInnerR;
+    const py = Math.sin(a) * octInnerR;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = C.brassMid;
+  ctx.lineWidth = 1.8 * dpr;
+  ctx.stroke();
+
+  // 8 Corner Brass Brackets (Kirtimukha Bosses)
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const bx = Math.cos(a) * octR;
+    const by = Math.sin(a) * octR;
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.arc(bx, by, 3.5 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 4 CARDINAL SACRED GATEWAYS (Dwaras / Toranas at North, South, East, West)
+  for (let g = 0; g < 4; g++) {
+    ctx.save();
+    ctx.rotate(g * (Math.PI / 2));
+
+    // Flanking Stone/Brass Gateway Pillars
+    ctx.fillStyle = C.brassMid;
+    ctx.strokeStyle = C.brassDark;
+    ctx.lineWidth = 1 * dpr;
+    const pillX = r * 0.38;
+    const pillY1 = -r * 1.25;
+    const pillY2 = -r * 1.52;
+    const pillW = 6 * dpr;
+    const pillH = pillY1 - pillY2;
+
+    // Left pillar
+    ctx.fillRect(-pillX - pillW / 2, pillY2, pillW, pillH);
+    ctx.strokeRect(-pillX - pillW / 2, pillY2, pillW, pillH);
+    // Right pillar
+    ctx.fillRect(pillX - pillW / 2, pillY2, pillW, pillH);
+    ctx.strokeRect(pillX - pillW / 2, pillY2, pillW, pillH);
+
+    // Torana arch beam
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.moveTo(-pillX - 6 * dpr, pillY2);
+    ctx.lineTo(pillX + 6 * dpr, pillY2);
+    ctx.lineTo(0, pillY2 - 10 * dpr);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Hanging miniature brass bell (Ghanta) swaying with temple breathing
+    const bellSway = Math.sin(centrePulseTime * 2.8 + g) * (2.8 * dpr);
+    ctx.strokeStyle = C.gold;
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, pillY2);
+    ctx.lineTo(bellSway, pillY2 + 10 * dpr);
+    ctx.stroke();
+
+    // Bell body
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.arc(bellSway, pillY2 + 13 * dpr, 3.2 * dpr, Math.PI, 0, false);
+    ctx.lineTo(bellSway + 4.2 * dpr, pillY2 + 17 * dpr);
+    ctx.lineTo(bellSway - 4.2 * dpr, pillY2 + 17 * dpr);
+    ctx.closePath();
+    ctx.fill();
+
+    // Stepped threshold stone (Chandrashila)
+    ctx.fillStyle = 'rgba(212, 175, 55, 0.35)';
+    ctx.beginPath();
+    ctx.arc(0, -r * 1.22, 14 * dpr, Math.PI, 0, false);
+    ctx.fill();
+
+    ctx.restore();
+  }
 
   // LAYER 8: Danger Threshold Ring (Alert halo when obstacles are near)
   let closestDist = Infinity;
@@ -576,6 +944,43 @@ function drawMandala(dt) {
     ctx.fillText('ॐ', 0, 0);
   }
 
+  // Flanking Traditional Standing Brass Lamps (Kuthu Vilakku / Samai)
+  const lampOffsets = [-innerMurtiR * 0.72, innerMurtiR * 0.72];
+  for (let lx of lampOffsets) {
+    ctx.save();
+    ctx.translate(lx, innerMurtiR * 0.12);
+
+    // Lamp stepped base
+    ctx.fillStyle = C.brassMid;
+    ctx.fillRect(-6 * dpr, 14 * dpr, 12 * dpr, 3 * dpr);
+    // Slender pillar
+    ctx.fillRect(-1.5 * dpr, -8 * dpr, 3 * dpr, 22 * dpr);
+    // Oil reservoir bowl
+    ctx.beginPath();
+    ctx.arc(0, -8 * dpr, 5.5 * dpr, 0, Math.PI);
+    ctx.fill();
+
+    // Flickering Golden Flame with gentle lamp aura
+    const flameFlicker = Math.sin(centrePulseTime * 6 + (lx > 0 ? 1.5 : 0)) * (0.8 * dpr);
+    const lampAura = ctx.createRadialGradient(0, -14 * dpr, 1 * dpr, 0, -14 * dpr, 13 * dpr);
+    lampAura.addColorStop(0, 'rgba(255, 235, 59, 0.45)');
+    lampAura.addColorStop(1, 'rgba(255, 143, 0, 0)');
+    ctx.fillStyle = lampAura;
+    ctx.beginPath();
+    ctx.arc(0, -14 * dpr, 13 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Teardrop lamp flame
+    ctx.fillStyle = C.gold;
+    ctx.beginPath();
+    ctx.moveTo(0, -18 * dpr + flameFlicker);
+    ctx.quadraticCurveTo(2.5 * dpr, -13 * dpr, 0, -10 * dpr);
+    ctx.quadraticCurveTo(-2.5 * dpr, -13 * dpr, 0, -18 * dpr + flameFlicker);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   // Attack Release Flash at Ganesha's weapon hand
   if (ganeshaAttackFlash > 0) {
     ctx.fillStyle = `rgba(255, 235, 59, ${ganeshaAttackFlash * 0.75})`;
@@ -583,6 +988,21 @@ function drawMandala(dt) {
     ctx.arc(0, 0, innerMurtiR * 0.7 * ganeshaAttackFlash, 0, Math.PI * 2);
     ctx.fill();
     ganeshaAttackFlash = Math.max(0, ganeshaAttackFlash - dt * 4);
+  }
+
+  // Martial Golden Weapon Release Crescent Arc
+  if (ganeshaSlashArc > 0) {
+    ctx.save();
+    ctx.rotate(ganeshaSlashAngle);
+    ctx.strokeStyle = `rgba(255, 215, 0, ${ganeshaSlashArc})`;
+    ctx.lineWidth = 4 * dpr * ganeshaSlashArc;
+    ctx.shadowColor = C.gold;
+    ctx.shadowBlur = 12 * dpr;
+    ctx.beginPath();
+    ctx.arc(0, 0, innerMurtiR * 1.15, -Math.PI / 4, Math.PI / 4);
+    ctx.stroke();
+    ctx.restore();
+    ganeshaSlashArc = Math.max(0, ganeshaSlashArc - dt * 4.5);
   }
 
   // Warm golden temple wash overlay for visual cohesion
@@ -841,6 +1261,34 @@ function drawObstacles() {
 
     ctx.restore();
   }
+
+  // Directional Danger Threat Indicators (screen edge cues)
+  const edgeMargin = 40 * dpr;
+  for (const o of obstacles) {
+    if (o.x < edgeMargin || o.x > W - edgeMargin || o.y < edgeMargin || o.y > H - edgeMargin) {
+      const edgeX = Math.max(edgeMargin, Math.min(W - edgeMargin, o.x));
+      const edgeY = Math.max(edgeMargin, Math.min(H - edgeMargin, o.y));
+      const angle = Math.atan2(cy - edgeY, cx - edgeX);
+
+      ctx.save();
+      ctx.translate(edgeX, edgeY);
+      ctx.rotate(angle);
+      const pulse = 0.55 + Math.sin(centrePulseTime * 8) * 0.4;
+      ctx.fillStyle = o.type === 'STONE' ? C.stoneHighlight : (o.type === 'SWARM' ? '#BA68C8' : C.vermillion);
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur = 8 * dpr;
+      ctx.beginPath();
+      // Pulsing diamond arrow pointing inward toward sanctum
+      ctx.moveTo(11 * dpr, 0);
+      ctx.lineTo(0, -6 * dpr);
+      ctx.lineTo(-4 * dpr, 0);
+      ctx.lineTo(0, 6 * dpr);
+      ctx.closePath();
+      ctx.globalAlpha = pulse;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
 }
 
 // --- Power-ups (Traditional Offerings - NO EMOJIS!) ---
@@ -1088,6 +1536,9 @@ function launchBlessing(targetX, targetY) {
   currentDirection = getDirectionKey(ganeshaAimAngle);
   aimTimer = 0.75; // Hold directional aiming pose
   ganeshaAttackFlash = 1.0;
+  ganeshaSlashArc = 1.0; // Golden crescent slash arc
+  ganeshaSlashAngle = ganeshaAimAngle;
+  firstKillDone = true; // Dismiss tutorial cue on player interaction
 
   // Arc path with natural Bezier curve
   const midX = (cx + targetX) / 2 + (Math.random() - 0.5) * 50 * dpr;
@@ -1334,6 +1785,13 @@ function updatePopups(dt) {
     t.life -= dt;
     if (t.life <= 0) textPopups.splice(i, 1);
   }
+
+  // Tutorial prompt fading logic
+  if (wave === 1 && !firstKillDone) {
+    tutorialAlpha = Math.min(1, tutorialAlpha + dt * 2);
+  } else {
+    tutorialAlpha = Math.max(0, tutorialAlpha - dt * 2.5);
+  }
 }
 
 function drawPopups() {
@@ -1348,6 +1806,20 @@ function drawPopups() {
     ctx.fillText(t.text, t.x, t.y);
     ctx.shadowBlur = 0;
   }
+
+  // Wave 1 First-Play Tutorial Banner
+  if (wave === 1 && !firstKillDone && tutorialAlpha > 0) {
+    ctx.save();
+    ctx.globalAlpha = tutorialAlpha;
+    ctx.fillStyle = C.gold;
+    ctx.font = `600 ${Math.max(13 * dpr, 14)}px "Outfit", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 8 * dpr;
+    ctx.fillText('✦ Tap approaching Vighnas to invoke Ganesha\'s Parashu ✦', cx, cy - mandalaR * 1.85);
+    ctx.restore();
+  }
+
   ctx.globalAlpha = 1;
 }
 
@@ -1546,6 +2018,11 @@ function updateDiyasHUD() {
 // --- Game Loop Lifecycle ---
 function startGame() {
   initAudio();
+  if (soundEnabled) {
+    startTempleDrone();
+  }
+  tutorialAlpha = 1.0;
+  firstKillDone = false;
   score = 0;
   blessings = 5;
   wave = 0;
@@ -1582,6 +2059,7 @@ function startGame() {
 function gameOver() {
   state = STATE.GAME_OVER;
   sfxGameOver();
+  stopTempleDrone();
 
   const isNewBest = score > bestScore;
   if (isNewBest) {
@@ -1695,6 +2173,11 @@ if (uiBtnAudioToggle) {
   uiBtnAudioToggle.addEventListener('click', () => {
     initAudio();
     soundEnabled = !soundEnabled;
+    if (soundEnabled) {
+      if (state === STATE.PLAYING) startTempleDrone();
+    } else {
+      stopTempleDrone();
+    }
     if (uiAudioIcon) uiAudioIcon.textContent = soundEnabled ? '🔔' : '🔕';
     if (uiAudioStatusText) uiAudioStatusText.textContent = soundEnabled ? 'BELLS: ON' : 'BELLS: OFF';
   });
