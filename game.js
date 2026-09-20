@@ -223,10 +223,16 @@ const uiDevoteeCardCanvas = document.getElementById('devoteeCardCanvas');
 const uiBtnDownloadCardPng = document.getElementById('btnDownloadCardPng');
 const uiBtnCloseDevoteeCard = document.getElementById('btnCloseDevoteeCard');
 const uiBtnCloseCardBottom = document.getElementById('btnCloseCardBottom');
+const uiCardModalSubtitle = document.getElementById('cardModalSubtitle');
+const uiCardLangButtonGroup = document.getElementById('cardLangButtonGroup');
 const uiBtnCardLangEn = document.getElementById('btnCardLangEn');
 const uiBtnCardLangTa = document.getElementById('btnCardLangTa');
-const uiCardModalSubtitle = document.getElementById('cardModalSubtitle');
-let cardLanguage = 'en'; // 'en' (English) | 'ta' (Tamil)
+const uiBtnCardLangTe = document.getElementById('btnCardLangTe');
+const uiBtnCardLangHi = document.getElementById('btnCardLangHi');
+const uiBtnCardLangKn = document.getElementById('btnCardLangKn');
+const uiBtnCardLangMr = document.getElementById('btnCardLangMr');
+let cardLanguage = 'en'; // 'en' | 'ta' | 'te' | 'hi' | 'kn' | 'mr'
+let userManuallyChangedLang = false;
 
 if (uiTitleBestScore) {
   uiTitleBestScore.textContent = bestScore.toLocaleString();
@@ -294,6 +300,10 @@ function saveDevoteeProfile() {
   localStorage.setItem('vighnaharta_player_name', name);
   localStorage.setItem('vighnaharta_player_campus', campus);
   localStorage.setItem('vighnaharta_player_id', studentId);
+
+  // Auto-detect and set card language based on chosen campus state
+  cardLanguage = getLanguageForCampus(campus);
+  userManuallyChangedLang = false;
 
   updateDevoteeUI();
   closeRegistrationModal();
@@ -487,14 +497,223 @@ function closeLeaderboardModal() {
   if (uiLeaderboardModal) uiLeaderboardModal.style.display = 'none';
 }
 
-// --- Sacred Ganesha Devotee Blessing Card Renderer (Simplified English & Tamil) ---
+// ============================================================
+// Multilingual Ganesha Devotee Card System
+// Supports: English, Tamil, Telugu, Hindi, Kannada, Marathi
+// ============================================================
+
+const CARD_LANGUAGES = {
+  en: {
+    code: 'en',
+    name: 'English',
+    fontTitle: '900 27px "Cinzel Decorative", "Outfit", serif',
+    fontBody: '"Outfit", sans-serif',
+    fontVerse: 'italic 16px "Tiro Devanagari Hindi", serif',
+    modalSub: 'Personalized Sacred Blessing Certificate',
+    invocation: '॥ श्री गणेशाय नमः ॥',
+    title: 'GANESHA DEVOTEE CARD',
+    subtitle: 'VIGHNAHARTA MAHOTSAV • 2026',
+    devoteeLabel: 'Presented with sacred blessings to:',
+    verse1: 'वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ ।',
+    verse2: 'निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥',
+    blessing1: 'May Lord Vighnaharta dissolve all obstacles and bestow',
+    blessing2: 'divine wisdom, prosperity, and success in all your journeys.',
+    punyaLabel: 'SACRED PUNYA',
+    tithi: 'भाद्रपद शुक्ल चतुर्थी महोत्सव',
+    dateLocale: 'en-IN',
+    datePrefix: 'Dated: ',
+    seal1: '★ VIGHNAHARTA ★',
+    seal2: 'TEMPLE SEAL'
+  },
+  ta: {
+    code: 'ta',
+    name: 'Tamil',
+    fontTitle: 'bold 28px "Mukta Malar", sans-serif',
+    fontBody: '"Mukta Malar", sans-serif',
+    fontVerse: 'bold 16px "Mukta Malar", sans-serif',
+    modalSub: 'தனிப்பயனாக்கப்பட்ட விநாயகர் அருளாசி அட்டை',
+    invocation: '॥ ஓம் ஸ்ரீ கணேசாய நமஹ ॥',
+    title: 'விநாயகர் அருளாசி அட்டை',
+    subtitle: 'விக்னஹர்த்தா பெருவிழா • 2026',
+    devoteeLabel: 'அருள் பெரும் பக்தர்:',
+    verse1: 'ஐந்து கரத்தனை ஆனை முகத்தனை',
+    verse2: 'இந்தின் இளம்பிறை போலும் எயிற்றனை ॥',
+    blessing1: 'முழுமுதற் கடவுள் விநாயகர் உங்கள் வாழ்வில் உள்ள தடைகளை நீக்கி,',
+    blessing2: 'நல்வாழ்வும், கல்வி ஞானமும், வெற்றியும் தந்தருள்வாராக.',
+    punyaLabel: 'புண்ணியம்',
+    tithi: 'விநாயகர் சதுர்த்தி நன்னாள்',
+    dateLocale: 'ta-IN',
+    datePrefix: 'தேதி: ',
+    seal1: '★ விக்னஹர்த்தா ★',
+    seal2: 'கோயில் முத்திரை'
+  },
+  te: {
+    code: 'te',
+    name: 'Telugu',
+    fontTitle: 'bold 27px "Noto Sans Telugu", sans-serif',
+    fontBody: '"Noto Sans Telugu", sans-serif',
+    fontVerse: 'bold 15.5px "Noto Sans Telugu", sans-serif',
+    modalSub: 'వ్యక్తిగతీకరించిన గణేశ భక్త ఆశీర్వాద పత్రం',
+    invocation: '॥ ఓం శ్రీ గణేశాయ నమః ॥',
+    title: 'గణేశ భక్త ఆశీర్వాద పత్రం',
+    subtitle: 'విఘ్నహర్త మహోత్సవం • 2026',
+    devoteeLabel: 'పరమ భక్తుడు:',
+    verse1: 'శుక్లాంబరధరం విష్ణుం శశివర్ణం చతుర్భుజమ్ ।',
+    verse2: 'ప్రసన్నవదనం ధ్యాయేత్ సర్వవిఘ్నోపశాంతయే ॥',
+    blessing1: 'శ్రీ విఘ్నహర్త విఘ్నాలన్నీ తొలగించి మీకు విద్యాబుద్ధులు,',
+    blessing2: 'శాంతి సౌఖ్యాలు, సకల విజయాలు ప్రసాదించుగాక.',
+    punyaLabel: 'పుణ్య ఫలం',
+    tithi: 'వినాయక చవితి పర్వదినం',
+    dateLocale: 'te-IN',
+    datePrefix: 'తేదీ: ',
+    seal1: '★ విఘ్నహర్త ★',
+    seal2: 'ఆలయ ముద్ర'
+  },
+  hi: {
+    code: 'hi',
+    name: 'Hindi',
+    fontTitle: 'bold 28px "Noto Sans Devanagari", "Tiro Devanagari Hindi", serif',
+    fontBody: '"Noto Sans Devanagari", sans-serif',
+    fontVerse: 'bold 16px "Tiro Devanagari Hindi", serif',
+    modalSub: 'व्यक्तिगत श्री गणेश भक्त आशीर्वाद पत्र',
+    invocation: '॥ ॐ श्री गणेशाय नमः ॥',
+    title: 'गणेश भक्त आशीर्वाद पत्र',
+    subtitle: 'विघ्नहर्ता गणेशोत्सव • 2026',
+    devoteeLabel: 'आशीर्वाद प्राप्तकर्ता:',
+    verse1: 'वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ ।',
+    verse2: 'निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥',
+    blessing1: 'भगवान विघ्नहर्ता आपके जीवन के सभी विघ्नों को दूर करें,',
+    blessing2: 'और सुख, समृद्धि, ज्ञान तथा विजय का वरदान दें।',
+    punyaLabel: 'पुण्य फल',
+    tithi: 'भाद्रपद शुक्ल चतुर्थी महोत्सव',
+    dateLocale: 'hi-IN',
+    datePrefix: 'दिनांक: ',
+    seal1: '★ विघ्नहर्ता ★',
+    seal2: 'मंदिर मुद्रा'
+  },
+  kn: {
+    code: 'kn',
+    name: 'Kannada',
+    fontTitle: 'bold 27px "Noto Sans Kannada", sans-serif',
+    fontBody: '"Noto Sans Kannada", sans-serif',
+    fontVerse: 'bold 15.5px "Noto Sans Kannada", sans-serif',
+    modalSub: 'ವೈಯಕ್ತಿಕ ಗಣೇಶ ಭಕ್ತ ಆಶೀರ್ವಾದ ಪತ್ರ',
+    invocation: '॥ ಓಂ ಶ್ರೀ ಗಣೇಶಾಯ ನಮಃ ॥',
+    title: 'ಗಣೇಶ ಭಕ್ತ ಆಶೀರ್ವಾದ ಪತ್ರ',
+    subtitle: 'ವಿಘ್ನಹರ್ತ ಮಹೋತ್ಸವ • 2026',
+    devoteeLabel: 'ಅನುಗ್ರಹ ಪಾತ್ರ ಭಕ್ತರು:',
+    verse1: 'ವಕ್ರತುಂಡ ಮಹಾಕಾಯ ಸೂರ್ಯಕೋಟಿ ಸಮಪ್ರಭ ।',
+    verse2: 'ನಿರ್ವಿಘ್ನಂ ಕುರು ಮೇ ದೇವ ಸರ್ವಕಾರ್ಯೇಷು ಸರ್ವದಾ ॥',
+    blessing1: 'ಶ್ರೀ ವಿಘ್ನಹರ್ತನು ನಿಮ್ಮ ಸಕಲ ವಿಘ್ನಗಳನ್ನು ನಿವಾರಿಸಿ,',
+    blessing2: 'ಜ್ಞಾನ, ಶಾಂತಿ, ಸಮೃದ್ಧಿ ಹಾಗೂ ಯಶಸ್ಸನ್ನು ಕರುಣಿಸಲಿ.',
+    punyaLabel: 'ಪುಣ್ಯ ಫಲ',
+    tithi: 'ಗಣೇಶ ಚತುರ್ಥಿ ಮಹೋತ್ಸವ',
+    dateLocale: 'kn-IN',
+    datePrefix: 'ದಿನಾಂಕ: ',
+    seal1: '★ ವಿಘ್ನಹರ್ತ ★',
+    seal2: 'ದೇವಾಲಯ ಮುದ್ರೆ'
+  },
+  mr: {
+    code: 'mr',
+    name: 'Marathi',
+    fontTitle: 'bold 28px "Noto Sans Devanagari", serif',
+    fontBody: '"Noto Sans Devanagari", sans-serif',
+    fontVerse: 'bold 16px "Tiro Devanagari Hindi", serif',
+    modalSub: 'व्यक्तिगत श्री गणेश भक्त आशीर्वाद पत्र',
+    invocation: '॥ ॐ गं गणपतये नमः ॥',
+    title: 'गणेश भक्त आशीर्वाद पत्र',
+    subtitle: 'श्री विघ्नहर्ता गणेशोत्सव • २०२६',
+    devoteeLabel: 'आशीर्वाद प्राप्तकर्ता भक्त:',
+    verse1: 'सुखकर्ता दुःखहर्ता वार्ता विघ्नाची ।',
+    verse2: 'नुरवी पुरवी प्रेम कृपा जयाची ॥',
+    blessing1: 'श्री विघ्नहर्ता आपल्या आयुष्यातील सर्व संकटांचे निवारण करो,',
+    blessing2: 'आणि सुख, समृद्धी, आरोग्य व उत्तम यश प्रदान करो.',
+    punyaLabel: 'पुण्य संचय',
+    tithi: 'भाद्रपद शुक्ल चतुर्थी महोत्सव',
+    dateLocale: 'mr-IN',
+    datePrefix: 'दिनांक: ',
+    seal1: '★ विघ्नहर्ता ★',
+    seal2: 'मंदिर मुद्रा'
+  }
+};
+
+// Automatic State-to-Language Detection
+function getLanguageForCampus(campus) {
+  if (!campus) return 'en';
+  const c = campus.toLowerCase();
+  // Tamil Nadu & Pondicherry
+  if (c.includes('chennai') || c.includes('pondicherry') || c.includes('tirunelveli') || c.includes('tamil') || 
+      c.includes('takshashila') || c.includes('amet') || c.includes('crescent') || c.includes('joy')) {
+    return 'ta';
+  }
+  // Telangana & Andhra Pradesh
+  if (c.includes('hyderabad') || c.includes('telangana') || c.includes('guntur') || 
+      c.includes('vijayawada') || c.includes('visakhapatnam') || c.includes('anantapur') || 
+      c.includes('kadapa') || c.includes('andhra') || c.includes('malla reddy') || c.includes('aurora') ||
+      c.includes('chaitanya') || c.includes('kapil') || c.includes('chalapathi') || c.includes('lingaya') ||
+      c.includes('nri') || c.includes('nsrit') || c.includes('best') || c.includes('annamacharya')) {
+    return 'te';
+  }
+  // Karnataka
+  if (c.includes('bengaluru') || c.includes('bangalore') || c.includes('mangalore') || c.includes('karnataka') || 
+      c.includes('vyasa') || c.includes('peter') || c.includes('yenepoya')) {
+    return 'kn';
+  }
+  // Maharashtra
+  if (c.includes('pune') || c.includes('kolhapur') || c.includes('maharashtra') || c.includes('patil') || c.includes('ghodawat')) {
+    return 'mr';
+  }
+  // North & Central India
+  if (c.includes('noida') || c.includes('mathura') || c.includes('jaipur') || c.includes('bhopal') || 
+      c.includes('sanskriti') || c.includes('vgu') || c.includes('tagore') || c.includes('north')) {
+    return 'hi';
+  }
+  return 'en';
+}
+
+function updateCardLangButtons() {
+  const langKeys = ['en', 'ta', 'te', 'hi', 'kn', 'mr'];
+  langKeys.forEach(k => {
+    const btn = document.getElementById(`btnCardLang${k.charAt(0).toUpperCase() + k.slice(1)}`);
+    if (btn) {
+      btn.classList.toggle('is-active', cardLanguage === k);
+    }
+  });
+
+  const cfg = CARD_LANGUAGES[cardLanguage] || CARD_LANGUAGES.en;
+  if (uiCardModalSubtitle) {
+    uiCardModalSubtitle.textContent = cfg.modalSub;
+  }
+}
+
+// Canvas Text Auto-Fit Helper: Guarantees zero text collision by scaling font size if needed
+function drawFittedText(ctx2, text, x, y, maxW, baseFont, color, align = 'center') {
+  ctx2.save();
+  ctx2.textAlign = align;
+  ctx2.fillStyle = color;
+  ctx2.font = baseFont;
+  let w = ctx2.measureText(text).width;
+  if (w > maxW && maxW > 0) {
+    const match = baseFont.match(/(\d+(?:\.\d+)?)px/);
+    if (match) {
+      const origSize = parseFloat(match[1]);
+      const newSize = Math.max(11, Math.floor(origSize * (maxW / w)));
+      ctx2.font = baseFont.replace(match[0], `${newSize}px`);
+    }
+  }
+  ctx2.fillText(text, x, y);
+  ctx2.restore();
+}
+
+// --- Sacred Ganesha Devotee Blessing Card Renderer ---
 function renderDevoteeCard() {
   if (!uiDevoteeCardCanvas) return;
   const c = uiDevoteeCardCanvas;
   const ctx2 = c.getContext('2d');
   const w = c.width = 960;
   const h = c.height = 580;
-  const isTa = (cardLanguage === 'ta');
+
+  const cfg = CARD_LANGUAGES[cardLanguage] || CARD_LANGUAGES.en;
 
   // 1. Devotional Midnight Indigo / Purple Radial Gradient Background
   const bgGrad = ctx2.createRadialGradient(w / 2, h / 2, 80, w / 2, h / 2, 540);
@@ -506,13 +725,13 @@ function renderDevoteeCard() {
 
   // Subtle Temple Watermark (Sacred 12-fold Lotus Ring behind Deity)
   ctx2.save();
-  ctx2.translate(195, 290);
+  ctx2.translate(175, 280);
   ctx2.strokeStyle = 'rgba(255, 215, 0, 0.05)';
   ctx2.lineWidth = 1.5;
   for (let m = 0; m < 12; m++) {
     ctx2.rotate((Math.PI * 2) / 12);
     ctx2.beginPath();
-    ctx2.arc(0, 75, 65, 0, Math.PI * 2);
+    ctx2.arc(0, 70, 60, 0, Math.PI * 2);
     ctx2.stroke();
   }
   ctx2.restore();
@@ -561,54 +780,54 @@ function renderDevoteeCard() {
     ctx2.fill();
   }
 
-  // 3. Left Side: Sacred Deity Portrait & Medallion
-  const medX = 195;
-  const medY = 290;
-  const medR = 112;
+  // 3. Left Side: Sacred Deity Portrait & Medallion (Guaranteed clear buffer space)
+  const medX = 175;
+  const medY = 280;
+  const medR = 98;
 
   // Divine Golden Aura Glow
-  const haloGrad = ctx2.createRadialGradient(medX, medY, medR * 0.7, medX, medY, medR * 1.45);
+  const haloGrad = ctx2.createRadialGradient(medX, medY, medR * 0.7, medX, medY, medR * 1.4);
   haloGrad.addColorStop(0, 'rgba(255, 215, 0, 0.38)');
   haloGrad.addColorStop(0.6, 'rgba(255, 107, 0, 0.12)');
   haloGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
   ctx2.fillStyle = haloGrad;
   ctx2.beginPath();
-  ctx2.arc(medX, medY, medR * 1.45, 0, Math.PI * 2);
+  ctx2.arc(medX, medY, medR * 1.4, 0, Math.PI * 2);
   ctx2.fill();
 
   // Brass & Gold Medallion Rim
   ctx2.strokeStyle = '#D4AF37';
-  ctx2.lineWidth = 5;
+  ctx2.lineWidth = 4.5;
   ctx2.beginPath();
   ctx2.arc(medX, medY, medR, 0, Math.PI * 2);
   ctx2.stroke();
 
   ctx2.strokeStyle = '#FFE082';
-  ctx2.lineWidth = 1.5;
+  ctx2.lineWidth = 1.2;
   ctx2.beginPath();
   ctx2.arc(medX, medY, medR - 4, 0, Math.PI * 2);
   ctx2.stroke();
 
   // Golden Sacred Dots around Medallion
   ctx2.fillStyle = '#FFD700';
-  for (let d = 0; d < 20; d++) {
-    const a = (d / 20) * Math.PI * 2;
+  for (let d = 0; d < 18; d++) {
+    const a = (d / 18) * Math.PI * 2;
     ctx2.beginPath();
-    ctx2.arc(medX + Math.cos(a) * (medR - 9), medY + Math.sin(a) * (medR - 9), 2.2, 0, Math.PI * 2);
+    ctx2.arc(medX + Math.cos(a) * (medR - 8), medY + Math.sin(a) * (medR - 8), 2.2, 0, Math.PI * 2);
     ctx2.fill();
   }
 
   // Draw Ganesha Sacred Portrait Inside Medallion
   ctx2.save();
   ctx2.beginPath();
-  ctx2.arc(medX, medY, medR - 13, 0, Math.PI * 2);
+  ctx2.arc(medX, medY, medR - 12, 0, Math.PI * 2);
   ctx2.clip();
   if (ganeshaImg && ganeshaImg.complete && ganeshaImg.naturalWidth > 0) {
-    const imgSize = (medR - 13) * 2;
+    const imgSize = (medR - 12) * 2;
     ctx2.drawImage(ganeshaImg, medX - imgSize / 2, medY - imgSize / 2, imgSize, imgSize);
   } else {
     ctx2.fillStyle = '#FFD700';
-    ctx2.font = 'bold 72px "Tiro Devanagari Hindi", serif';
+    ctx2.font = 'bold 68px "Tiro Devanagari Hindi", serif';
     ctx2.textAlign = 'center';
     ctx2.textBaseline = 'middle';
     ctx2.fillText('ॐ', medX, medY);
@@ -621,89 +840,67 @@ function renderDevoteeCard() {
   // Lotus Base under Medallion
   ctx2.fillStyle = '#FFC107';
   ctx2.beginPath();
-  ctx2.ellipse(medX, medY + medR + 5, 42, 9, 0, 0, Math.PI * 2);
+  ctx2.ellipse(medX, medY + medR + 5, 38, 8, 0, 0, Math.PI * 2);
   ctx2.fill();
 
-  // 4. Right Side: Clear, Dignified Devotee Certificate Details
-  const contentX = 585;
-  ctx2.textAlign = 'center';
+  // 4. Right Side: Clear, Dignified Devotee Certificate Details (Centered at 635)
+  // Distance from medX (175 + 98 = 273) to text left boundary (385) is 112px of safety!
+  const contentX = 635;
 
   // --- Zone A: Sacred Header ---
-  ctx2.fillStyle = '#FFB300';
-  if (isTa) {
-    ctx2.font = 'bold 22px "Mukta Malar", sans-serif';
-    ctx2.fillText('॥ ஓம் ஸ்ரீ கணேசாய நமஹ ॥', contentX, 72);
-  } else {
-    ctx2.font = 'bold 20px "Tiro Devanagari Hindi", serif';
-    ctx2.fillText('॥ श्री गणेशाय नमः ॥', contentX, 72);
-  }
+  drawFittedText(ctx2, cfg.invocation, contentX, 70, 500, 'bold 20px ' + cfg.fontBody, '#FFB300');
 
-  ctx2.fillStyle = '#FFD700';
+  // Main Card Title with Glow
+  ctx2.save();
   ctx2.shadowColor = 'rgba(255, 215, 0, 0.35)';
   ctx2.shadowBlur = 8;
-  if (isTa) {
-    ctx2.font = 'bold 28px "Mukta Malar", sans-serif';
-    ctx2.fillText('விநாயகர் அருளாசி அட்டை', contentX, 110);
-  } else {
-    ctx2.font = '900 27px "Cinzel Decorative", "Outfit", serif';
-    ctx2.fillText('GANESHA DEVOTEE CARD', contentX, 110);
-  }
-  ctx2.shadowBlur = 0;
+  drawFittedText(ctx2, cfg.title, contentX, 108, 520, cfg.fontTitle, '#FFD700');
+  ctx2.restore();
 
-  ctx2.fillStyle = '#FFE082';
-  if (isTa) {
-    ctx2.font = '600 13px "Mukta Malar", sans-serif';
-    ctx2.fillText('விக்னஹர்த்தா பெருவிழா • 2026', contentX, 136);
-  } else {
-    ctx2.font = '600 12px "Outfit", sans-serif';
-    ctx2.fillText('VIGHNAHARTA MAHOTSAV • 2026', contentX, 136);
-  }
+  drawFittedText(ctx2, cfg.subtitle, contentX, 135, 480, '600 12.5px ' + cfg.fontBody, '#FFE082');
 
   // Golden Divider Line with Central Sacred ॐ
   ctx2.strokeStyle = 'rgba(212, 175, 55, 0.6)';
   ctx2.lineWidth = 1;
   ctx2.beginPath();
-  ctx2.moveTo(contentX - 210, 154);
-  ctx2.lineTo(contentX - 25, 154);
-  ctx2.moveTo(contentX + 25, 154);
-  ctx2.lineTo(contentX + 210, 154);
+  ctx2.moveTo(contentX - 190, 153);
+  ctx2.lineTo(contentX - 25, 153);
+  ctx2.moveTo(contentX + 25, 153);
+  ctx2.lineTo(contentX + 190, 153);
   ctx2.stroke();
   ctx2.fillStyle = '#FFD700';
   ctx2.font = '16px "Tiro Devanagari Hindi", serif';
-  ctx2.fillText('ॐ', contentX, 159);
+  ctx2.textAlign = 'center';
+  ctx2.fillText('ॐ', contentX, 158);
 
   // --- Zone B: Devotee Information ---
-  ctx2.fillStyle = 'rgba(255, 248, 225, 0.85)';
-  if (isTa) {
-    ctx2.font = '600 14px "Mukta Malar", sans-serif';
-    ctx2.fillText('அருள் பெரும் பக்தர்:', contentX, 192);
-  } else {
-    ctx2.font = 'italic 13.5px "Outfit", sans-serif';
-    ctx2.fillText('Presented with sacred blessings to:', contentX, 192);
-  }
+  drawFittedText(ctx2, cfg.devoteeLabel, contentX, 188, 480, 'italic 13.5px ' + cfg.fontBody, 'rgba(255, 248, 225, 0.85)');
 
-  const devoteeName = (currentDevotee.name || (isTa ? 'அன்பர்' : 'Sacred Devotee')).toUpperCase();
-  ctx2.fillStyle = '#FFE57F';
-  ctx2.font = '900 32px "Outfit", "Mukta Malar", sans-serif';
+  const devoteeName = (currentDevotee.name || (cfg.code === 'ta' ? 'அன்பர்' : (cfg.code === 'te' ? 'భక్తుడు' : 'Sacred Devotee'))).toUpperCase();
+  ctx2.save();
   ctx2.shadowColor = '#000000';
   ctx2.shadowBlur = 6;
-  ctx2.fillText(devoteeName, contentX, 235);
-  ctx2.shadowBlur = 0;
+  drawFittedText(ctx2, devoteeName, contentX, 230, 480, '900 30px "Outfit", ' + cfg.fontBody, '#FFE57F');
+  ctx2.restore();
 
-  // Decorative Accent Underline
+  // Dynamic Accent Underline sized precisely to the devotee's name
+  ctx2.font = '900 30px "Outfit", ' + cfg.fontBody;
+  const nameW = Math.min(460, ctx2.measureText(devoteeName).width);
+  const lineW = Math.max(100, Math.min(340, nameW + 24));
   ctx2.fillStyle = '#C62828';
-  ctx2.fillRect(contentX - 130, 247, 260, 2.5);
+  ctx2.fillRect(contentX - lineW / 2, 242, lineW, 2.5);
   ctx2.fillStyle = '#FFD700';
-  ctx2.fillRect(contentX - 25, 246, 50, 4.5);
+  ctx2.fillRect(contentX - 22, 241, 44, 4.5);
 
   // Campus Badge Pill
   const rawCampus = currentDevotee.campus || 'NIAT - Partner Campus';
   const campusText = rawCampus;
-  ctx2.font = 'bold 13.5px "Outfit", "Mukta Malar", sans-serif';
-  const campusBadgeW = Math.min(480, Math.max(260, ctx2.measureText(campusText).width + 48));
+  ctx2.font = 'bold 13px "Outfit", ' + cfg.fontBody;
+  const campusW = ctx2.measureText(campusText).width;
+  const campusBadgeW = Math.min(480, Math.max(220, campusW + 36));
   const campusBadgeH = 30;
   const badgeX = contentX - campusBadgeW / 2;
-  const badgeY = 265;
+  const badgeY = 256;
 
   ctx2.fillStyle = 'rgba(255, 107, 0, 0.2)';
   ctx2.strokeStyle = '#D4AF37';
@@ -713,68 +910,39 @@ function renderDevoteeCard() {
   ctx2.fill();
   ctx2.stroke();
 
-  ctx2.fillStyle = '#FFE082';
-  ctx2.fillText(campusText, contentX, badgeY + 20);
+  drawFittedText(ctx2, campusText, contentX, badgeY + 20, campusBadgeW - 16, 'bold 13px "Outfit", ' + cfg.fontBody, '#FFE082');
 
-  // --- Zone C: Sacred Verse & Blessing (Clean 2+2 lines) ---
-  if (isTa) {
-    // Revered Tamil Vinayagar Agaval by Avvaiyar
-    ctx2.fillStyle = '#FFD700';
-    ctx2.font = 'bold 15.5px "Mukta Malar", sans-serif';
-    ctx2.fillText('ஐந்து கரத்தனை ஆனை முகத்தனை', contentX, 332);
-    ctx2.fillText('இந்தின் இளம்பிறை போலும் எயிற்றனை நந்தி மகன்தனைப் போற்றுகின்றோமே ॥', contentX, 356);
+  // --- Zone C: Sacred Verse & Blessing (Clean 2+2 lines, Auto-Fitted) ---
+  drawFittedText(ctx2, cfg.verse1, contentX, 330, 500, cfg.fontVerse, '#FFD700');
+  drawFittedText(ctx2, cfg.verse2, contentX, 354, 500, cfg.fontVerse, '#FFD700');
 
-    ctx2.fillStyle = 'rgba(255, 248, 225, 0.9)';
-    ctx2.font = '13.5px "Mukta Malar", sans-serif';
-    ctx2.fillText('முழுமுதற் கடவுள் விநாயகர் உங்கள் வாழ்வில் உள்ள தடைகளை நீக்கி,', contentX, 396);
-    ctx2.fillText('நல்வாழ்வும், கல்வி ஞானமும், மங்கல வெற்றியும் தந்தருள்வாராக.', contentX, 418);
-  } else {
-    // Celebrated Sanskrit Shloka & English Blessing
-    ctx2.fillStyle = '#FFD700';
-    ctx2.font = 'italic 15.5px "Tiro Devanagari Hindi", serif';
-    ctx2.fillText('वक्रतुण्ड महाकाय सूर्यकोटि समप्रभ ।', contentX, 332);
-    ctx2.fillText('निर्विघ्नं कुरु मे देव सर्वकार्येषु सर्वदा ॥', contentX, 356);
+  drawFittedText(ctx2, cfg.blessing1, contentX, 396, 520, '13px ' + cfg.fontBody, 'rgba(255, 248, 225, 0.9)');
+  drawFittedText(ctx2, cfg.blessing2, contentX, 418, 520, '13px ' + cfg.fontBody, 'rgba(255, 248, 225, 0.9)');
 
-    ctx2.fillStyle = 'rgba(255, 248, 225, 0.9)';
-    ctx2.font = '13px "Outfit", sans-serif';
-    ctx2.fillText('May Lord Vighnaharta dissolve all obstacles and bestow divine wisdom,', contentX, 396);
-    ctx2.fillText('peace, prosperity, and auspicious success in all your journeys.', contentX, 418);
-  }
-
-  // --- Zone D: Footer (Punya Score, Date, Temple Seal) ---
+  // --- Zone D: Footer Row (Punya Score, Date, Temple Seal) ---
   const footerY = 485;
   const displayScore = Math.max(score, bestScore);
 
-  // 1. Punya Badge Box
+  // 1. Punya Badge Box (Left)
   ctx2.fillStyle = 'rgba(212, 175, 55, 0.16)';
   ctx2.strokeStyle = '#D4AF37';
   ctx2.lineWidth = 1;
   ctx2.beginPath();
-  ctx2.roundRect(400, footerY - 18, 140, 42, 6);
+  ctx2.roundRect(365, footerY - 18, 130, 42, 6);
   ctx2.fill();
   ctx2.stroke();
 
-  ctx2.fillStyle = '#FFC107';
-  ctx2.font = isTa ? 'bold 11px "Mukta Malar", sans-serif' : 'bold 10.5px "Outfit", sans-serif';
-  ctx2.fillText(isTa ? 'புண்ணியம்' : 'SACRED PUNYA', 470, footerY - 2);
+  drawFittedText(ctx2, cfg.punyaLabel, 430, footerY - 2, 115, 'bold 10.5px ' + cfg.fontBody, '#FFC107');
+  drawFittedText(ctx2, displayScore.toLocaleString(), 430, footerY + 16, 115, 'bold 16px "Outfit", sans-serif', '#FFFFFF');
 
-  ctx2.fillStyle = '#FFFFFF';
-  ctx2.font = 'bold 16px "Outfit", sans-serif';
-  ctx2.fillText(displayScore.toLocaleString(), 470, footerY + 16);
-
-  // 2. Date & Tithi
+  // 2. Date & Tithi (Center)
   const today = new Date();
-  const dateStr = today.toLocaleDateString(isTa ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  ctx2.fillStyle = '#B0BEC5';
-  ctx2.font = isTa ? '12px "Mukta Malar", sans-serif' : '11.5px "Outfit", sans-serif';
-  ctx2.fillText(isTa ? `தேதி: ${dateStr}` : `Dated: ${dateStr}`, 630, footerY - 2);
+  const dateStr = today.toLocaleDateString(cfg.dateLocale || 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  drawFittedText(ctx2, cfg.datePrefix + dateStr, 635, footerY - 2, 220, '11.5px ' + cfg.fontBody, '#B0BEC5');
+  drawFittedText(ctx2, cfg.tithi, 635, footerY + 15, 240, 'italic 11.5px ' + cfg.fontBody, '#FFE082');
 
-  ctx2.fillStyle = '#FFE082';
-  ctx2.font = isTa ? 'italic 12px "Mukta Malar", sans-serif' : 'italic 11.5px "Tiro Devanagari Hindi", serif';
-  ctx2.fillText(isTa ? 'விநாயகர் சதுர்த்தி திருநாள்' : 'भाद्रपद शुक्ल चतुर्थी महोत्सव', 630, footerY + 15);
-
-  // 3. Circular Temple Seal
-  const sealX = 795;
+  // 3. Circular Temple Seal (Right)
+  const sealX = 840;
   const sealY = footerY;
   const sealR = 28;
 
@@ -794,12 +962,11 @@ function renderDevoteeCard() {
 
   ctx2.fillStyle = '#FFD700';
   ctx2.font = 'bold 15px "Tiro Devanagari Hindi", serif';
+  ctx2.textAlign = 'center';
   ctx2.fillText('ॐ', 0, 5);
 
-  ctx2.font = isTa ? 'bold 6.5px "Mukta Malar", sans-serif' : 'bold 6.5px "Outfit", sans-serif';
-  ctx2.fillStyle = '#FFE082';
-  ctx2.fillText(isTa ? '★ விக்னஹர்த்தா ★' : '★ VIGHNAHARTA ★', 0, -sealR + 9);
-  ctx2.fillText(isTa ? 'கோயில் முத்திரை' : 'TEMPLE SEAL', 0, sealR - 7);
+  drawFittedText(ctx2, cfg.seal1, 0, -sealR + 9, sealR * 2, 'bold 6.5px ' + cfg.fontBody, '#FFE082');
+  drawFittedText(ctx2, cfg.seal2, 0, sealR - 7, sealR * 2, 'bold 6.5px ' + cfg.fontBody, '#FFE082');
   ctx2.restore();
 }
 
@@ -808,6 +975,11 @@ function openDevoteeCardModal() {
     openRegistrationModal(true);
     return;
   }
+  // Auto-detect language from student's campus state if user hasn't manually selected one
+  if (!userManuallyChangedLang) {
+    cardLanguage = getLanguageForCampus(currentDevotee.campus);
+  }
+  updateCardLangButtons();
   renderDevoteeCard();
   if (uiDevoteeCardModal) uiDevoteeCardModal.style.display = 'flex';
 }
@@ -819,10 +991,11 @@ function closeDevoteeCardModal() {
 function downloadDevoteeCardImage() {
   if (!uiDevoteeCardCanvas) return;
   renderDevoteeCard();
+  const cfg = CARD_LANGUAGES[cardLanguage] || CARD_LANGUAGES.en;
   const safeName = (currentDevotee.name || 'Devotee').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const langSuffix = cardLanguage === 'ta' ? 'Tamil' : 'English';
+  const langName = cfg.name || 'English';
   const link = document.createElement('a');
-  link.download = `Ganesha_Devotee_Card_${safeName}_${langSuffix}.png`;
+  link.download = `Ganesha_Devotee_Card_${safeName}_${langName}.png`;
   link.href = uiDevoteeCardCanvas.toDataURL('image/png');
   document.body.appendChild(link);
   link.click();
@@ -3176,25 +3349,26 @@ if (uiBtnDownloadCardPng) {
   uiBtnDownloadCardPng.addEventListener('click', downloadDevoteeCardImage);
 }
 
-if (uiBtnCardLangEn) {
-  uiBtnCardLangEn.addEventListener('click', () => {
-    cardLanguage = 'en';
-    uiBtnCardLangEn.classList.add('is-active');
-    if (uiBtnCardLangTa) uiBtnCardLangTa.classList.remove('is-active');
-    if (uiCardModalSubtitle) uiCardModalSubtitle.textContent = 'Personalized Sacred Blessing Certificate';
-    renderDevoteeCard();
-  });
-}
+const langButtonConfig = [
+  { id: 'btnCardLangEn', lang: 'en' },
+  { id: 'btnCardLangTa', lang: 'ta' },
+  { id: 'btnCardLangTe', lang: 'te' },
+  { id: 'btnCardLangHi', lang: 'hi' },
+  { id: 'btnCardLangKn', lang: 'kn' },
+  { id: 'btnCardLangMr', lang: 'mr' }
+];
 
-if (uiBtnCardLangTa) {
-  uiBtnCardLangTa.addEventListener('click', () => {
-    cardLanguage = 'ta';
-    uiBtnCardLangTa.classList.add('is-active');
-    if (uiBtnCardLangEn) uiBtnCardLangEn.classList.remove('is-active');
-    if (uiCardModalSubtitle) uiCardModalSubtitle.textContent = 'தனிப்பயனாக்கப்பட்ட விநாயகர் அருளாசி அட்டை';
-    renderDevoteeCard();
-  });
-}
+langButtonConfig.forEach(item => {
+  const btn = document.getElementById(item.id);
+  if (btn) {
+    btn.addEventListener('click', () => {
+      cardLanguage = item.lang;
+      userManuallyChangedLang = true;
+      updateCardLangButtons();
+      renderDevoteeCard();
+    });
+  }
+});
 
 // --- Main 60FPS Game Loop ---
 function gameLoop(timestamp) {

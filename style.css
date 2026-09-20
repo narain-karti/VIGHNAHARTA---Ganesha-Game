@@ -36,12 +36,12 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: var(--night-indigo);
+  background-color: #0b0214;
   background-image: 
-    linear-gradient(rgba(10, 2, 20, 0.75), rgba(10, 2, 20, 0.85)),
+    linear-gradient(rgba(10, 2, 20, 0.22), rgba(10, 2, 20, 0.4)),
     url('assets/bg_grand_temple.jpg');
   background-size: cover;
-  background-position: center bottom;
+  background-position: center 72%;
   background-repeat: no-repeat;
   color: var(--cream);
   font-family: var(--font-ui);
@@ -438,8 +438,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, rgba(35, 10, 65, 0.85) 0%, rgba(13, 3, 26, 0.95) 100%);
-  backdrop-filter: blur(6px);
+  background: radial-gradient(circle at center, rgba(22, 6, 42, 0.4) 0%, rgba(10, 2, 20, 0.72) 100%);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   padding: 20px;
 }
 
@@ -987,11 +988,13 @@ html, body {
 
 .lang-buttons {
   display: inline-flex;
-  background: rgba(15, 3, 25, 0.85);
+  background: rgba(15, 3, 25, 0.9);
   border: 1px solid var(--brass-mid);
   border-radius: 20px;
-  padding: 3px;
+  padding: 3px 6px;
   gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .btn-lang {
@@ -999,12 +1002,18 @@ html, body {
   border: none;
   color: var(--cream);
   font-family: var(--font-ui);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 5px 14px;
-  border-radius: 16px;
+  padding: 5px 11px;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-lang:hover {
+  background: rgba(255, 215, 0, 0.15);
+  color: var(--gold);
 }
 
 .btn-lang.is-active {
@@ -1383,5 +1392,150 @@ html, body {
 .btn-sm {
   padding: 8px 14px !important;
   font-size: 0.78rem !important;
+}
+
+/* ============================================================
+   Divine Companion: Mushika Vahana & Dialogue System
+   (Spacious & uncongested at bottom-right corner)
+   ============================================================ */
+.mushika-companion {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  top: auto;
+  left: auto;
+  transform: none;
+  z-index: 95;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 360px;
+  width: auto;
+  pointer-events: auto;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.mushika-speech-bubble {
+  position: relative;
+  flex: 1;
+  background: linear-gradient(135deg, rgba(26, 5, 51, 0.92) 0%, rgba(45, 10, 78, 0.88) 100%);
+  border: 1.5px solid rgba(255, 215, 0, 0.6);
+  border-radius: 14px;
+  border-bottom-right-radius: 4px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 14px rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.3s, box-shadow 0.3s, opacity 0.25s, transform 0.25s;
+}
+
+.mushika-companion.minimized .mushika-speech-bubble {
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+  display: none;
+}
+
+.mushika-companion.is-speaking .mushika-speech-bubble {
+  border-color: #FFD700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.55), inset 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
+.mushika-speaker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.mushika-name {
+  font-family: var(--font-title);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+
+.mushika-btn-min {
+  background: transparent;
+  border: none;
+  color: rgba(255, 215, 0, 0.65);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.mushika-btn-min:hover {
+  color: #FFF;
+  transform: scale(1.15);
+}
+
+.mushika-speech-text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--cream);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  letter-spacing: 0.2px;
+}
+
+.mushika-avatar-wrapper {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  cursor: pointer;
+  animation: mushikaBob 2.8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.75));
+  transition: transform 0.2s;
+}
+
+.mushika-avatar-wrapper:hover {
+  transform: scale(1.1);
+}
+
+@keyframes mushikaBob {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(2deg); }
+  100% { transform: translateY(2px) rotate(-2deg); }
+}
+
+.mushika-svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.mushika-badge-tag {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #FF6F00, #B71C1C);
+  color: #FFF;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  border: 1px solid var(--gold);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .mushika-companion {
+    bottom: 12px;
+    right: 12px;
+    max-width: calc(100% - 24px);
+    gap: 8px;
+  }
+  .mushika-speech-text {
+    font-size: 0.78rem;
+  }
 }
 

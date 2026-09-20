@@ -7,11 +7,12 @@
   <meta name="description" content="A Traditional Indian Devotional Pixel-Art Arcade game celebrating Ganesh Chaturthi. Tap dark vighnas to invoke Lord Ganesha's sacred golden blessings.">
   <meta name="theme-color" content="#1A0533">
   
-  <!-- Traditional & Modern Typography (English, Hindi, Tamil) -->
+  <!-- Traditional & Modern Typography (English, Hindi, Tamil, Telugu, Kannada, Marathi) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Mukta+Malar:wght@400;600;700;800&family=Outfit:wght@400;600;700;900&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Mukta+Malar:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700;800&family=Noto+Sans+Kannada:wght@400;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&family=Outfit:wght@400;600;700;900&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
   
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕉️</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -50,6 +51,51 @@
 
   <!-- Main Game Canvas (Interactive Arena) -->
   <canvas id="gameCanvas"></canvas>
+
+  <!-- Divine Companion: Mushika Vahana (Guide & Lore Companion) -->
+  <div id="mushikaCompanion" class="mushika-companion" aria-live="polite">
+    <div class="mushika-speech-bubble" id="mushikaBubble">
+      <div class="mushika-speaker-header">
+        <span class="mushika-name">✦ MOOSHAK VAHANA</span>
+        <button id="btnMinimizeMushika" class="mushika-btn-min" title="Toggle Speech Bubble" aria-label="Toggle speech bubble">✕</button>
+      </div>
+      <p class="mushika-speech-text" id="mushikaText">Prabhu Ganesha! Welcome to Vighnaharta! Tap approaching demons to unleash your golden Parashu!</p>
+    </div>
+    <div class="mushika-avatar-wrapper" id="mushikaAvatar" title="Mushika Vahana - Click for guidance">
+      <svg viewBox="0 0 54 54" class="mushika-svg" aria-label="Mushika">
+        <circle cx="27" cy="27" r="25" fill="rgba(26, 5, 51, 0.9)" stroke="#D4AF37" stroke-width="2"/>
+        <circle cx="27" cy="27" r="23" fill="none" stroke="rgba(255, 215, 0, 0.35)" stroke-dasharray="3,3"/>
+        <!-- Ears -->
+        <ellipse cx="14" cy="15" rx="8" ry="10" fill="#B08968" stroke="#5D3A0A" stroke-width="1.5"/>
+        <ellipse cx="14" cy="15" rx="5" ry="6" fill="#FFCDB2"/>
+        <ellipse cx="40" cy="15" rx="8" ry="10" fill="#B08968" stroke="#5D3A0A" stroke-width="1.5"/>
+        <ellipse cx="40" cy="15" rx="5" ry="6" fill="#FFCDB2"/>
+        <!-- Body & Head -->
+        <path d="M 16 38 C 16 23, 38 23, 38 38 C 38 46, 16 46, 16 38 Z" fill="#8D6E63" stroke="#5D3A0A" stroke-width="1.5"/>
+        <ellipse cx="27" cy="28" rx="13" ry="12" fill="#A1887F" stroke="#5D3A0A" stroke-width="1.5"/>
+        <!-- Red Tilak -->
+        <line x1="27" y1="20" x2="27" y2="25" stroke="#C62828" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="27" cy="26" r="1.2" fill="#FFD700"/>
+        <!-- Eyes -->
+        <circle cx="21" cy="27" r="2.5" fill="#1A0533"/>
+        <circle cx="21.8" cy="26.2" r="0.8" fill="#FFF"/>
+        <circle cx="33" cy="27" r="2.5" fill="#1A0533"/>
+        <circle cx="33.8" cy="26.2" r="0.8" fill="#FFF"/>
+        <!-- Snout -->
+        <ellipse cx="27" cy="33" rx="4" ry="3" fill="#D7CCC8"/>
+        <ellipse cx="27" cy="32.5" rx="2" ry="1.5" fill="#FF5252"/>
+        <!-- Whiskers -->
+        <line x1="18" y1="32" x2="8" y2="30" stroke="#FFF8E1" stroke-width="1.2"/>
+        <line x1="18" y1="34" x2="9" y2="35" stroke="#FFF8E1" stroke-width="1.2"/>
+        <line x1="36" y1="32" x2="46" y2="30" stroke="#FFF8E1" stroke-width="1.2"/>
+        <line x1="36" y1="34" x2="45" y2="35" stroke="#FFF8E1" stroke-width="1.2"/>
+        <!-- Golden Modak -->
+        <path d="M 27 36 C 24 38, 23 44, 27 45 C 31 44, 30 38, 27 36 Z" fill="#FFD700" stroke="#FF8F00" stroke-width="1"/>
+        <ellipse cx="27" cy="42" rx="3.5" ry="1.5" fill="#FFA000"/>
+      </svg>
+      <div class="mushika-badge-tag">MOOSHAK</div>
+    </div>
+  </div>
 
   <!-- Heads-Up Display (In-Game Overlay) -->
   <header id="hud" class="hud-overlay" style="display: none;">
@@ -446,12 +492,16 @@
         <button id="btnCloseDevoteeCard" class="btn-close" title="Close Modal">✕</button>
       </div>
 
-      <!-- Language Selector Bar (English & Tamil) -->
+      <!-- Language Selector Bar (State & Regional Languages) -->
       <div class="card-lang-bar">
-        <span class="lang-label">SELECT LANGUAGE / மொழி:</span>
-        <div class="lang-buttons">
-          <button type="button" id="btnCardLangEn" class="btn-lang is-active" title="English Card">🇬🇧 English</button>
-          <button type="button" id="btnCardLangTa" class="btn-lang" title="தமிழ் அட்டை">🪔 தமிழ் (Tamil)</button>
+        <span class="lang-label">LANGUAGE / மொழி / భాష:</span>
+        <div class="lang-buttons" id="cardLangButtonGroup">
+          <button type="button" id="btnCardLangEn" class="btn-lang is-active" data-lang="en" title="English">🇬🇧 English</button>
+          <button type="button" id="btnCardLangTa" class="btn-lang" data-lang="ta" title="தமிழ் (Tamil Nadu)">🪔 தமிழ்</button>
+          <button type="button" id="btnCardLangTe" class="btn-lang" data-lang="te" title="తెలుగు (Telangana & AP)">🪔 తెలుగు</button>
+          <button type="button" id="btnCardLangHi" class="btn-lang" data-lang="hi" title="हिन्दी (North & Central)">🪔 हिन्दी</button>
+          <button type="button" id="btnCardLangKn" class="btn-lang" data-lang="kn" title="ಕನ್ನಡ (Karnataka)">🪔 ಕನ್ನಡ</button>
+          <button type="button" id="btnCardLangMr" class="btn-lang" data-lang="mr" title="मराठी (Maharashtra)">🪔 मराठी</button>
         </div>
       </div>
 
