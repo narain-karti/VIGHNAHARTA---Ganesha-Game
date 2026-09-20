@@ -126,6 +126,12 @@ sealImg.src = 'assets/sacred_seal.png';
 let sealLoaded = false;
 sealImg.onload = () => { sealLoaded = true; };
 
+// --- Grand Temple Background Artwork Asset ---
+const bgTempleImg = new Image();
+bgTempleImg.src = 'assets/bg_grand_temple.jpg';
+let bgTempleLoaded = false;
+bgTempleImg.onload = () => { bgTempleLoaded = true; };
+
 // --- 8-Directional Ganesha Sprites (from User Design Sheet) ---
 const DIR_KEYS = ['up', 'up_right', 'right', 'down_right', 'down', 'down_left', 'left', 'up_left'];
 const ganeshaSprites = {};
@@ -233,6 +239,14 @@ const uiBtnCardLangKn = document.getElementById('btnCardLangKn');
 const uiBtnCardLangMr = document.getElementById('btnCardLangMr');
 let cardLanguage = 'en'; // 'en' | 'ta' | 'te' | 'hi' | 'kn' | 'mr'
 let userManuallyChangedLang = false;
+
+// Mushika Companion & Dialogue DOM Elements (Voice audio disabled per user request)
+const uiMushikaCompanion = document.getElementById('mushikaCompanion');
+const uiMushikaText = document.getElementById('mushikaText');
+const uiBtnMinimizeMushika = document.getElementById('btnMinimizeMushika');
+let voiceNarrationEnabled = false; // Spoken voice audio disabled per user instruction
+let currentVoiceAudio = null;
+let voiceTypewriterTimer = null;
 
 if (uiTitleBestScore) {
   uiTitleBestScore.textContent = bestScore.toLocaleString();
@@ -1055,6 +1069,175 @@ function playTempleBell(freq, duration = 0.8, volume = 0.2) {
 // Indian classical Raga scale notes (Bilawal / Bhairav inspired)
 const RAGA_NOTES = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50]; // C5 to C6
 
+// 1. Traditional Shankha (Conch Shell) Ceremonial Blast
+function sfxShankha() {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const now = audioCtx.currentTime;
+    const dur = 1.6;
+
+    // Breath & shell harmonics (fundamental + 2nd + 3rd harmonics)
+    const freqs = [261.63, 392.00, 523.25]; // C4, G4, C5 shell resonance
+    const gains = [0.18, 0.12, 0.08];
+
+    // Master envelope with natural breath swell
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.gain.linearRampToValueAtTime(0.24, now + 0.35); // Breathy swell
+    masterGain.gain.setValueAtTime(0.24, now + 0.95);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    // Subtle pitch vibrato (lip tension)
+    const vibOsc = audioCtx.createOscillator();
+    const vibGain = audioCtx.createGain();
+    vibOsc.frequency.setValueAtTime(5.5, now);
+    vibGain.gain.setValueAtTime(4.0, now);
+    vibOsc.connect(vibGain);
+    vibOsc.start(now);
+    vibOsc.stop(now + dur);
+
+    const bq = audioCtx.createBiquadFilter();
+    bq.type = 'bandpass';
+    bq.frequency.setValueAtTime(420, now);
+    bq.Q.setValueAtTime(3.0, now);
+
+    freqs.forEach((f, i) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = i === 0 ? 'triangle' : 'sawtooth';
+      osc.frequency.setValueAtTime(f, now);
+      vibGain.connect(osc.frequency);
+      g.gain.setValueAtTime(gains[i], now);
+      osc.connect(g);
+      g.connect(bq);
+      osc.start(now);
+      osc.stop(now + dur);
+    });
+
+    bq.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+  } catch (e) {}
+}
+
+// 2. Heavy Dholak / Mridangam Impact Beat
+function sfxDholBeat(isHeavy = false) {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const now = audioCtx.currentTime;
+    const dur = isHeavy ? 0.32 : 0.22;
+
+    // Bass membrane oscillator (pitch drops rapidly like a struck drum skin)
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    const startFreq = isHeavy ? 175 : 145;
+    const endFreq = isHeavy ? 38 : 46;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+
+    gain.gain.setValueAtTime(isHeavy ? 0.45 : 0.32, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    // Rim-slap noise transient (leather click)
+    const slapLen = Math.floor(audioCtx.sampleRate * 0.035);
+    const buffer = audioCtx.createBuffer(1, slapLen, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < slapLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (slapLen * 0.25));
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(1400, now);
+    noiseFilter.Q.setValueAtTime(2.0, now);
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.18, now);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    noise.start(now);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + dur);
+  } catch (e) {}
+}
+
+// 3. Stone Shatter / Obsidian Crack (for Lobhasura Golems)
+function sfxStoneCrack() {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const now = audioCtx.currentTime;
+    const dur = 0.28;
+
+    // Low-pass filtered noise crunch
+    const noiseLen = Math.floor(audioCtx.sampleRate * dur);
+    const buffer = audioCtx.createBuffer(1, noiseLen, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (noiseLen * 0.35));
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const bq = audioCtx.createBiquadFilter();
+    bq.type = 'lowpass';
+    bq.frequency.setValueAtTime(650, now);
+    bq.frequency.exponentialRampToValueAtTime(120, now + dur);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    noise.connect(bq);
+    bq.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start(now);
+
+    // Sharp stone fracture click
+    const osc = audioCtx.createOscillator();
+    const oscGain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(820, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.08);
+    oscGain.gain.setValueAtTime(0.25, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    osc.connect(oscGain);
+    oscGain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  } catch (e) {}
+}
+
+// 4. Shimmering Sitar Glissando / Raga Strum (for Prasad & Combos)
+function sfxSitarStrum() {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    const strum = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    strum.forEach((freq, idx) => {
+      setTimeout(() => {
+        playTempleBell(freq, 0.45, 0.16);
+      }, idx * 45);
+    });
+  } catch (e) {}
+}
+
+// 5. Divine Aura Blast / Maha-Aarti Chime
+function sfxAuraBlast() {
+  if (!audioCtx || !soundEnabled) return;
+  try {
+    sfxShankha();
+    sfxDholBeat(true);
+    setTimeout(() => {
+      playTempleBell(1046.50, 1.8, 0.35);
+      playTempleBell(1318.51, 1.6, 0.28);
+    }, 120);
+  } catch (e) {}
+}
+
 // Continuous Meditative Indian Tanpura Drone (Sa-Pa C3 & G2)
 function startTempleDrone() {
   if (!audioCtx || !soundEnabled || droneGain) return;
@@ -1100,16 +1283,18 @@ function stopTempleDrone() {
 }
 
 function sfxTapBlessing() {
-  playTempleBell(880, 0.25, 0.15);
+  playTempleBell(880, 0.22, 0.14);
 }
 
 function sfxDestroy(comboLevel) {
   const noteIdx = Math.min(comboLevel, RAGA_NOTES.length - 1);
   const freq = RAGA_NOTES[noteIdx];
-  playTempleBell(freq, 0.5, 0.22);
+  playTempleBell(freq, 0.45, 0.22);
+  sfxDholBeat(false);
 }
 
 function sfxCloseSave() {
+  sfxDholBeat(true);
   playTempleBell(1318.5, 1.2, 0.3); // High E6 ring
   setTimeout(() => playTempleBell(1567.98, 0.9, 0.2), 60); // High G6 resonance
   const rack = document.getElementById('diyaRack');
@@ -1127,34 +1312,131 @@ function sfxMiss() {
     const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(140, now);
-    osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.45);
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start(now);
-    osc.stop(now + 0.4);
+    osc.stop(now + 0.45);
   } catch(e) {}
 }
 
 function sfxPowerup() {
-  playTempleBell(659.25, 0.3, 0.18);
-  setTimeout(() => playTempleBell(783.99, 0.35, 0.2), 70);
-  setTimeout(() => playTempleBell(1046.50, 0.6, 0.25), 140);
+  sfxSitarStrum();
 }
 
 function sfxWaveComplete() {
-  playTempleBell(523.25, 0.8, 0.2);
-  setTimeout(() => playTempleBell(659.25, 0.8, 0.2), 100);
-  setTimeout(() => playTempleBell(783.99, 1.2, 0.25), 200);
+  sfxShankha();
+  setTimeout(() => playTempleBell(783.99, 1.2, 0.25), 250);
 }
 
 function sfxGameOver() {
   playTempleBell(523.25, 0.5, 0.2);
   setTimeout(() => playTempleBell(440.00, 0.6, 0.2), 180);
   setTimeout(() => playTempleBell(329.63, 1.0, 0.25), 380);
+}
+
+// --- Mushika Companion Dialogue Controller (Spoken voice removed per user request) ---
+function playVoiceNarration(audioSrc, text, speakerName = 'MOOSHAK VAHANA') {
+  if (uiMushikaText) {
+    typewriteMushikaText(text);
+  }
+  const speakerLabel = uiMushikaCompanion ? uiMushikaCompanion.querySelector('.mushika-name') : null;
+  if (speakerLabel) {
+    speakerLabel.textContent = `✦ ${speakerName}`;
+  }
+
+  // Ensure companion bubble is visible if previously minimized
+  if (uiMushikaCompanion && uiMushikaCompanion.classList.contains('minimized')) {
+    uiMushikaCompanion.classList.remove('minimized');
+  }
+
+  // Voice playback removed completely: cease any audio
+  if (currentVoiceAudio) {
+    try {
+      currentVoiceAudio.pause();
+      currentVoiceAudio.currentTime = 0;
+    } catch (e) {}
+    currentVoiceAudio = null;
+  }
+
+  // Subtle companion speaking animation pulse
+  if (uiMushikaCompanion) {
+    uiMushikaCompanion.classList.add('is-speaking');
+    setTimeout(() => {
+      if (uiMushikaCompanion) {
+        uiMushikaCompanion.classList.remove('is-speaking');
+      }
+    }, 2800);
+  }
+}
+
+function typewriteMushikaText(fullText) {
+  if (voiceTypewriterTimer) {
+    clearInterval(voiceTypewriterTimer);
+    voiceTypewriterTimer = null;
+  }
+  if (!uiMushikaText) return;
+  uiMushikaText.textContent = '';
+  let i = 0;
+  voiceTypewriterTimer = setInterval(() => {
+    if (i < fullText.length) {
+      uiMushikaText.textContent += fullText[i];
+      i++;
+    } else {
+      clearInterval(voiceTypewriterTimer);
+      voiceTypewriterTimer = null;
+    }
+  }, 18);
+}
+
+const MUSHIKA_DIALOGUES = {
+  1: {
+    audio: 'assets/audio/mushika_w1_start.mp3',
+    text: 'Prabhu Ganesha! Matsarasura\'s shadow wisps are creeping toward our temple! Do not let them touch the sanctum, swing your Parashu!'
+  },
+  2: {
+    audio: 'assets/audio/mushika_w2_taunt.mp3',
+    text: 'Aha, a good warm-up, Prabhu! But look! Krodhasura\'s barbed crawlers are swarming from the flanks! Are you getting slow, or did you eat too many modaks?'
+  },
+  3: {
+    audio: 'assets/audio/mushika_w3_taunt.mp3',
+    text: 'O Lambodara! Wave three! The heavy stone golems of Lobhasura take two direct hits! Shatter them before they crush my snacks!'
+  },
+  4: {
+    audio: 'assets/audio/mushika_w4_taunt.mp3',
+    text: 'Hot, hot, hot! Analasura\'s blazing fire scythes are spinning toward us! Quick, Lord of Wisdom, banish the inferno!'
+  },
+  5: {
+    audio: 'assets/audio/mushika_w5_taunt.mp3',
+    text: 'The cosmic Sri Yantra is spinning! Halfway to victory, Prabhu! Show all the worlds why you are the true Vighnaharta!'
+  },
+  6: {
+    audio: 'assets/audio/mushika_w6_taunt.mp3',
+    text: 'Thunder and tempest! Even the heavens shake, but our sacred diyas burn bright! Don\'t let your guard down now, Ganesha!'
+  },
+  7: {
+    audio: 'assets/audio/mushika_w7_taunt.mp3',
+    text: 'The celestial gates are in sight! Only an elephant god with an unbeatable spirit can withstand this onslaught!'
+  },
+  8: {
+    audio: 'assets/audio/mushika_w8_taunt.mp3',
+    text: 'The demonic eclipse deepens! The supreme titan Mahavighna stirs in the darkness! Unleash your full divine might!'
+  },
+  10: {
+    audio: 'assets/audio/mushika_w10_boss.mp3',
+    text: 'Behold! Mahavighna has arrived! Deflect his heavy dark orbs back into his face! For Kailash and the universe!'
+  }
+};
+
+function triggerMushikaVoice(waveNum) {
+  const dlg = MUSHIKA_DIALOGUES[waveNum];
+  if (dlg) {
+    playVoiceNarration(dlg.audio, dlg.text, 'MOOSHAK VAHANA');
+  }
 }
 
 // --- Ambient Environment Particles ---
@@ -1362,151 +1644,179 @@ function drawAmbient() {
   ctx.globalAlpha = 1;
 }
 
-// --- Living Temple Night Background ---
+// --- Distinct Multi-Realm Wave Atmospheres ---
+const WAVE_REALMS = [
+  // Wave 1: Dawn Temple Sanctum (Prabhat Utsav)
+  {
+    name: 'Dawn Sanctum',
+    ambientWash: 'rgba(255, 140, 0, 0.06)',
+    coreGlow1: 'rgba(255, 171, 64, 0.32)', coreGlow2: 'rgba(255, 111, 0, 0.12)',
+    rayColor: 'rgba(255, 215, 0, 0.035)',
+    flagstoneColor: 'rgba(255, 215, 0, 0.06)',
+    kolamColor: 'rgba(255, 248, 225, 0.07)',
+    accent: '#FF9800'
+  },
+  // Wave 2: Twilight Deepam (Sandhya Ghats)
+  {
+    name: 'Twilight Deepam',
+    ambientWash: 'rgba(160, 20, 80, 0.09)',
+    coreGlow1: 'rgba(255, 112, 67, 0.32)', coreGlow2: 'rgba(156, 39, 176, 0.14)',
+    rayColor: 'rgba(255, 138, 101, 0.04)',
+    flagstoneColor: 'rgba(255, 171, 64, 0.07)',
+    kolamColor: 'rgba(255, 183, 77, 0.08)',
+    accent: '#FF5722'
+  },
+  // Wave 3: Ratri Kolam (Midnight Sacred Sanctum)
+  {
+    name: 'Ratri Kolam',
+    ambientWash: 'rgba(10, 20, 60, 0.14)',
+    coreGlow1: 'rgba(68, 138, 255, 0.30)', coreGlow2: 'rgba(124, 77, 255, 0.14)',
+    rayColor: 'rgba(179, 136, 255, 0.035)',
+    flagstoneColor: 'rgba(64, 196, 255, 0.07)',
+    kolamColor: 'rgba(0, 229, 255, 0.08)',
+    accent: '#00E5FF'
+  },
+  // Wave 4: Agni Kund (Sacred Fire Realm)
+  {
+    name: 'Agni Kund',
+    ambientWash: 'rgba(200, 35, 0, 0.14)',
+    coreGlow1: 'rgba(255, 61, 0, 0.38)', coreGlow2: 'rgba(213, 0, 0, 0.18)',
+    rayColor: 'rgba(255, 87, 34, 0.045)',
+    flagstoneColor: 'rgba(255, 87, 34, 0.08)',
+    kolamColor: 'rgba(255, 110, 64, 0.09)',
+    accent: '#FF3D00'
+  },
+  // Wave 5: Brahmanda Mandala (Cosmic Nebula)
+  {
+    name: 'Brahmanda Mandala',
+    ambientWash: 'rgba(80, 0, 130, 0.15)',
+    coreGlow1: 'rgba(224, 64, 251, 0.34)', coreGlow2: 'rgba(101, 31, 255, 0.16)',
+    rayColor: 'rgba(234, 128, 252, 0.04)',
+    flagstoneColor: 'rgba(224, 64, 251, 0.07)',
+    kolamColor: 'rgba(234, 128, 252, 0.08)',
+    accent: '#E040FB'
+  },
+  // Wave 6: Pralaya Storm (Tempest Thunder Realm)
+  {
+    name: 'Pralaya Storm',
+    ambientWash: 'rgba(20, 35, 65, 0.18)',
+    coreGlow1: 'rgba(144, 202, 249, 0.32)', coreGlow2: 'rgba(103, 58, 183, 0.16)',
+    rayColor: 'rgba(255, 255, 255, 0.04)',
+    flagstoneColor: 'rgba(187, 222, 251, 0.07)',
+    kolamColor: 'rgba(144, 202, 249, 0.08)',
+    accent: '#90CAF9'
+  },
+  // Wave 7: Svarga Sopanam (Celestial Lapis & Gold Palace)
+  {
+    name: 'Svarga Sopanam',
+    ambientWash: 'rgba(0, 50, 100, 0.14)',
+    coreGlow1: 'rgba(255, 215, 0, 0.38)', coreGlow2: 'rgba(0, 188, 212, 0.2)',
+    rayColor: 'rgba(255, 215, 0, 0.05)',
+    flagstoneColor: 'rgba(255, 215, 0, 0.08)',
+    kolamColor: 'rgba(255, 235, 59, 0.09)',
+    accent: '#FFD700'
+  },
+  // Wave 8+: Maha-Sanctum (Supreme Golden Shikhara)
+  {
+    name: 'Maha-Sanctum',
+    ambientWash: 'rgba(160, 70, 0, 0.16)',
+    coreGlow1: 'rgba(255, 215, 0, 0.48)', coreGlow2: 'rgba(255, 143, 0, 0.26)',
+    rayColor: 'rgba(255, 235, 59, 0.06)',
+    flagstoneColor: 'rgba(255, 215, 0, 0.1)',
+    kolamColor: 'rgba(255, 215, 0, 0.12)',
+    accent: '#FFD700'
+  }
+];
+
+function getCurrentRealm() {
+  const w = Math.max(1, wave || 1);
+  const idx = Math.min(w - 1, WAVE_REALMS.length - 1);
+  return WAVE_REALMS[idx];
+}
+
+// --- Living Grand Temple Background with Dynamic Wave Atmospheres ---
 function drawBackground() {
-  // Clear canvas so CSS background image is visible
   ctx.clearRect(0, 0, W, H);
 
-  // Glowing Chaturthi Crescent Moon
-  ctx.save();
-  const moonX = W * 0.82;
-  const moonY = H * 0.22;
-  const moonR = 45 * dpr;
-  // Moon Aura
-  const moonAura = ctx.createRadialGradient(moonX, moonY, moonR*0.8, moonX, moonY, moonR*3);
-  moonAura.addColorStop(0, 'rgba(255, 248, 225, 0.25)');
-  moonAura.addColorStop(1, 'rgba(255, 248, 225, 0)');
-  ctx.fillStyle = moonAura;
-  ctx.beginPath(); ctx.arc(moonX, moonY, moonR*3, 0, Math.PI * 2); ctx.fill();
-  
-  // Moon Body (Crescent)
-  ctx.fillStyle = '#FFF8E1';
-  ctx.shadowColor = '#FFF8E1';
-  ctx.shadowBlur = 15 * dpr;
-  ctx.beginPath(); ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath(); ctx.arc(moonX - 12*dpr, moonY - 12*dpr, moonR, 0, Math.PI * 2); ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.restore();
-
-  // Drifting Nocturnal Clouds (Parallax Layer 1)
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-  for (let i = 0; i < 5; i++) {
-    const cloudX = ((i * 400 * dpr + centrePulseTime * 15) % (W + 400 * dpr)) - 200 * dpr;
-    const cloudY = H * 0.15 + i * 50 * dpr;
-    ctx.beginPath();
-    ctx.ellipse(cloudX, cloudY, 120 * dpr, 40 * dpr, 0, 0, Math.PI * 2);
-    ctx.ellipse(cloudX + 60*dpr, cloudY - 20*dpr, 80 * dpr, 50 * dpr, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // 1. Draw Grand Temple Artwork (crisp aspect-ratio covered)
+  if (bgTempleLoaded && bgTempleImg.naturalWidth > 0) {
+    const iw = bgTempleImg.naturalWidth;
+    const ih = bgTempleImg.naturalHeight;
+    const scale = Math.max(W / iw, H / ih);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const dx = (W - dw) / 2;
+    const dy = (H - dh) / 2;
+    ctx.drawImage(bgTempleImg, dx, dy, dw, dh);
   }
 
-  // Warm Golden radial glow behind the sacred centre
-  const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, mandalaR * 3.2);
-  coreGlow.addColorStop(0, 'rgba(255, 215, 0, 0.16)');
-  coreGlow.addColorStop(0.4, 'rgba(255, 107, 0, 0.08)');
-  coreGlow.addColorStop(1, 'rgba(255, 215, 0, 0)');
+  const realm = getCurrentRealm();
+
+  // 2. Wave-specific ambient wash overlay (subtle mood tint, keeping temple fully visible)
+  if (realm.ambientWash) {
+    ctx.fillStyle = realm.ambientWash;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 3. Cinematic Radial Vignette (keeps gameplay focus on sanctum while softly framing edges)
+  const vigR = Math.hypot(W, H) / 2;
+  const vignette = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.32, cx, cy, vigR);
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(0.75, 'rgba(10, 2, 20, 0.22)');
+  vignette.addColorStop(1, 'rgba(10, 2, 20, 0.58)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+
+  // 4. Center Sanctum Divine Aura Core around Ganesha
+  const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, mandalaR * 3.4);
+  coreGlow.addColorStop(0, realm.coreGlow1 || 'rgba(255, 215, 0, 0.32)');
+  coreGlow.addColorStop(0.5, realm.coreGlow2 || 'rgba(255, 140, 0, 0.12)');
+  coreGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = coreGlow;
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle Temple Radial Rays (slow rotation)
+  // 5. Rotating Sacred Sunburst / Mandala Rays
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(centrePulseTime * 0.04);
+  ctx.rotate(centrePulseTime * 0.03);
   const numRays = 16;
-  ctx.fillStyle = 'rgba(255, 215, 0, 0.015)';
+  ctx.fillStyle = realm.rayColor || 'rgba(255, 215, 0, 0.035)';
   for (let i = 0; i < numRays; i++) {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     const a1 = (i / numRays) * Math.PI * 2;
-    const a2 = a1 + (Math.PI / numRays) * 0.5;
+    const a2 = a1 + (Math.PI / numRays) * 0.45;
     ctx.arc(0, 0, spawnR, a1, a2);
     ctx.closePath();
     ctx.fill();
   }
   ctx.restore();
 
-  // 1. Concentric Temple Courtyard Flagstones (Prakaram Stone Floor)
+  // 6. Courtyard Flagstone Rings (Prakaram Floor Accents)
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.strokeStyle = 'rgba(255, 215, 0, 0.035)';
+  ctx.strokeStyle = realm.flagstoneColor || 'rgba(255, 215, 0, 0.06)';
   ctx.lineWidth = 1.2 * dpr;
-  const flagstoneRadii = [mandalaR * 1.55, mandalaR * 2.2, mandalaR * 2.9, mandalaR * 3.7, mandalaR * 4.5];
+  const flagstoneRadii = [mandalaR * 1.55, mandalaR * 2.2, mandalaR * 2.9, mandalaR * 3.7];
   for (let rad of flagstoneRadii) {
     ctx.beginPath();
     ctx.arc(0, 0, rad, 0, Math.PI * 2);
     ctx.stroke();
   }
-  const flagstoneSectors = 24;
-  for (let i = 0; i < flagstoneSectors; i++) {
-    const a = (i / flagstoneSectors) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * (mandalaR * 1.55), Math.sin(a) * (mandalaR * 1.55));
-    ctx.lineTo(Math.cos(a) * (mandalaR * 4.5), Math.sin(a) * (mandalaR * 4.5));
-    ctx.stroke();
-  }
   ctx.restore();
 
-  // 2. Subtle Sacred Geometry / Rangoli background watermark
+  // 7. Sacred Floor Kolam Watermark around Sanctum
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.strokeStyle = 'rgba(255, 215, 0, 0.04)';
-  ctx.lineWidth = 1 * dpr;
+  ctx.strokeStyle = realm.kolamColor || 'rgba(255, 215, 0, 0.07)';
+  ctx.lineWidth = 1.2 * dpr;
   const numOuterPetals = 8;
-  const outerR = mandalaR * 2.8;
+  const outerR = mandalaR * 2.6;
   for (let i = 0; i < numOuterPetals; i++) {
     const a = (i / numOuterPetals) * Math.PI * 2;
     ctx.beginPath();
-    ctx.arc(Math.cos(a) * outerR * 0.6, Math.sin(a) * outerR * 0.6, outerR * 0.45, 0, Math.PI * 2);
+    ctx.arc(Math.cos(a) * outerR * 0.55, Math.sin(a) * outerR * 0.55, outerR * 0.4, 0, Math.PI * 2);
     ctx.stroke();
-  }
-  ctx.restore();
-
-  // 3. Distant Gopuram & Temple Pillar Silhouettes (Parallax Layer 2)
-  drawTempleSilhouettes();
-}
-
-function drawTempleSilhouettes() {
-  ctx.save();
-  // Very slow continuous scroll to the left
-  const parallaxOffset = -(centrePulseTime * 8) % (300 * dpr);
-  ctx.translate(parallaxOffset, 0);
-
-  ctx.fillStyle = 'rgba(14, 3, 28, 0.65)';
-  ctx.strokeStyle = 'rgba(255, 215, 0, 0.08)';
-  ctx.lineWidth = 1 * dpr;
-
-  const gopW = 75 * dpr;
-  const gopH = 140 * dpr;
-  const baseY = H;
-  
-  // Draw repeating sequence of Gopurams to cover wider scrolled area
-  for (let s = -1; s <= 2; s++) {
-    const baseX = s * (W * 0.6) + 10 * dpr;
-    
-    // Tiered Shikhara
-    ctx.beginPath();
-    ctx.moveTo(baseX, baseY);
-    ctx.lineTo(baseX, baseY - gopH * 0.4);
-    ctx.lineTo(baseX + 8 * dpr, baseY - gopH * 0.4);
-    ctx.lineTo(baseX + 8 * dpr, baseY - gopH * 0.7);
-    ctx.lineTo(baseX + 16 * dpr, baseY - gopH * 0.7);
-    ctx.lineTo(baseX + 25 * dpr, baseY - gopH);
-    ctx.lineTo(baseX + 34 * dpr, baseY - gopH * 0.7);
-    ctx.lineTo(baseX + 42 * dpr, baseY - gopH * 0.7);
-    ctx.lineTo(baseX + 42 * dpr, baseY - gopH * 0.4);
-    ctx.lineTo(baseX + 50 * dpr, baseY - gopH * 0.4);
-    ctx.lineTo(baseX + 50 * dpr, baseY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Golden Kalasham on Spire
-    ctx.fillStyle = C.brassMid;
-    ctx.beginPath();
-    ctx.arc(baseX + 25 * dpr, baseY - gopH - 4 * dpr, 3.2 * dpr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(14, 3, 28, 0.65)'; // restore color for next
   }
   ctx.restore();
 }
@@ -1866,49 +2176,49 @@ function drawMandala(dt) {
   ctx.restore();
 }
 
-// --- Obstacle Type Definitions & Behaviors ---
+// --- Obstacle Type Definitions & Behaviors (Aggressive Scaling from Level 1) ---
 const OBS_CONFIG = {
   WISP: {
-    name: 'SHADOW WISP',
-    baseSpeed: 65, // Increased from 52
-    hp: 1,
-    points: 10,
-    radius: 16
-  },
-  THORN: {
-    name: 'THORN CLUSTER',
-    baseSpeed: 85, // Increased from 68
+    name: 'MATSARASURA (SHADOW WISP)',
+    baseSpeed: 92, // Fast, spectral, fluid from Wave 1
     hp: 1,
     points: 15,
-    radius: 17
+    radius: 18
   },
-  STONE: {
-    name: 'STONE BLOCK',
-    baseSpeed: 52, // Increased from 42
-    hp: 2,
-    points: 25,
-    radius: 21
-  },
-  SWARM: {
-    name: 'DARK SWARM',
-    baseSpeed: 100, // Increased from 82
+  THORN: {
+    name: 'KRODHASURA (BARBED BEAST)',
+    baseSpeed: 108, // Rapid predator crawl
     hp: 1,
     points: 20,
-    radius: 15
+    radius: 19
   },
-  BOSS: {
-    name: 'MAHAVIGHNA',
-    baseSpeed: 50, // Increased from 40
-    hp: 1,
-    points: 1000,
-    radius: 40
+  STONE: {
+    name: 'LOBHASURA (STONE GOLEM)',
+    baseSpeed: 70, // Heavy multi-hit crusher
+    hp: 2,
+    points: 35,
+    radius: 23
   },
-  ORB: {
-    name: 'HEAVY ORB',
-    baseSpeed: 100, // Increased from 80
+  SWARM: {
+    name: 'ANALASURA (FIRE SCYTHE)',
+    baseSpeed: 122, // Blazing hellfire rush
     hp: 1,
     points: 30,
-    radius: 12
+    radius: 18
+  },
+  BOSS: {
+    name: 'MAHAVIGHNA (ASURA EMPEROR)',
+    baseSpeed: 62,
+    hp: 10,
+    points: 1000,
+    radius: 46
+  },
+  ORB: {
+    name: 'CURSED KARMA ORB',
+    baseSpeed: 115,
+    hp: 1,
+    points: 40,
+    radius: 14
   }
 };
 
@@ -2085,53 +2395,408 @@ function generatePixelSprites() {
 generatePixelSprites();
 // ------------------------------------------
 
-function spawnObstacle() {
-  let pool = ['WISP'];
-  if (wave >= 2) pool.push('THORN');
-  if (wave >= 4) pool.push('STONE');
-  if (wave >= 6) pool.push('SWARM');
+// --- Handcrafted Specific Mythical Demon Renderers (NO Plain Boxes!) ---
 
-  // Wave 10 is the Boss Fight
-  if (wave === 10) {
-    if (waveObsSpawned === 0) {
-      // Spawn Boss
-      const angle = Math.random() * Math.PI * 2;
-      const dist = W * 0.9;
-      obstacles.push({
-        type: 'BOSS',
-        x: cx + Math.cos(angle) * dist,
-        y: cy + Math.sin(angle) * dist,
-        vx: 0,
-        vy: 0,
-        hp: 10, // Boss needs 10 reflected orbs
-        rot: 0,
-        rotSpeed: 1.5,
-        animTime: 0,
-        radius: OBS_TYPES['BOSS'].radius * dpr,
-        points: OBS_TYPES['BOSS'].points,
-        angle: angle,
-        shootTimer: 2.0
-      });
-      // Set a fake high count so it doesn't trigger wave end immediately
-      waveObsCount = 999;
-    }
-    // Spawn occasional wisps to keep player busy
-    pool = ['WISP'];
+// 1. Matsarasura (Envy Demon / Shadow Wisp)
+function drawMonsterWisp(ctx, o) {
+  const r = o.radius;
+  const time = o.animTime * 6;
+
+  // Dark violet ethereal void aura
+  const auraGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 1.65);
+  auraGrad.addColorStop(0, 'rgba(170, 0, 255, 0.45)');
+  auraGrad.addColorStop(0.5, 'rgba(45, 10, 78, 0.25)');
+  auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = auraGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.65, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Undulating spectral smoke tendrils trailing behind
+  ctx.strokeStyle = '#4A148C';
+  ctx.lineWidth = 2.8 * dpr;
+  ctx.lineCap = 'round';
+  for (let i = -2; i <= 2; i++) {
+    const angle = Math.PI * 0.5 + (i * 0.45);
+    const wave = Math.sin(time + i * 1.2) * (r * 0.35);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * (r * 0.4), Math.sin(angle) * (r * 0.4));
+    ctx.quadraticCurveTo(
+      Math.cos(angle) * (r * 1.1) + wave,
+      Math.sin(angle) * (r * 1.1) + wave,
+      Math.cos(angle) * (r * 1.6),
+      Math.sin(angle) * (r * 1.6)
+    );
+    ctx.stroke();
   }
 
-  const type = pool[Math.floor(Math.random() * pool.length)];
-  const cfg = OBS_CONFIG[type];
+  // Demonic skull body
+  ctx.fillStyle = '#1A002C';
+  ctx.strokeStyle = '#8A2BE2';
+  ctx.lineWidth = 1.8 * dpr;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.85, r * 0.95, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
 
-  // Spawn around outer circle perimeter
-  const angle = Math.random() * Math.PI * 2;
+  // Curved dark horns
+  ctx.fillStyle = '#11001C';
+  ctx.strokeStyle = '#D500F9';
+  ctx.lineWidth = 1.2 * dpr;
+  // Left horn
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.5, -r * 0.3);
+  ctx.quadraticCurveTo(-r * 1.1, -r * 0.9, -r * 0.6, -r * 1.4);
+  ctx.quadraticCurveTo(-r * 0.4, -r * 0.8, -r * 0.15, -r * 0.6);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Right horn
+  ctx.beginPath();
+  ctx.moveTo(r * 0.5, -r * 0.3);
+  ctx.quadraticCurveTo(r * 1.1, -r * 0.9, r * 0.6, -r * 1.4);
+  ctx.quadraticCurveTo(r * 0.4, -r * 0.8, r * 0.15, -r * 0.6);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Glowing demonic slit eyes (crimson with gold pupil)
+  const eyePulse = 0.85 + Math.sin(time * 1.5) * 0.15;
+  ctx.fillStyle = `rgba(255, 0, 64, ${eyePulse})`;
+  ctx.shadowColor = '#FF0055';
+  ctx.shadowBlur = 8 * dpr;
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.32, -r * 0.05, r * 0.22, r * 0.12, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.32, -r * 0.05, r * 0.22, r * 0.12, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // Inner vertical slit pupil
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(-r * 0.34, -r * 0.12, 1.8 * dpr, r * 0.22);
+  ctx.fillRect(r * 0.32, -r * 0.12, 1.8 * dpr, r * 0.22);
+  ctx.shadowBlur = 0;
+}
+
+// 2. Krodhasura (Wrath / Barbed Demon Crawler)
+function drawMonsterThorn(ctx, o) {
+  const r = o.radius;
+  const time = o.animTime * 8;
+
+  // Predator legs scuttling on flanks
+  ctx.strokeStyle = '#2E7D32';
+  ctx.lineWidth = 2 * dpr;
+  for (let s = -1; s <= 1; s += 2) {
+    for (let k = 0; k < 3; k++) {
+      const legSway = Math.sin(time + k * 1.5) * (4 * dpr);
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.4, -r * 0.3 + k * r * 0.35);
+      ctx.lineTo(s * (r * 1.1 + legSway), -r * 0.2 + k * r * 0.4);
+      ctx.lineTo(s * (r * 1.45 + legSway), -r * 0.05 + k * r * 0.45);
+      ctx.stroke();
+    }
+  }
+
+  // Central jagged beetle demon body
+  ctx.fillStyle = '#0D230D';
+  ctx.strokeStyle = '#00FF66';
+  ctx.lineWidth = 1.6 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.95);
+  ctx.lineTo(r * 0.8, -r * 0.3);
+  ctx.lineTo(r * 0.7, r * 0.5);
+  ctx.lineTo(0, r * 0.95);
+  ctx.lineTo(-r * 0.7, r * 0.5);
+  ctx.lineTo(-r * 0.8, -r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Forward vicious curved blood horns
+  ctx.fillStyle = '#B71C1C';
+  ctx.strokeStyle = '#FF1744';
+  ctx.lineWidth = 1.2 * dpr;
+  // Left Horn
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.4, -r * 0.7);
+  ctx.quadraticCurveTo(-r * 0.85, -r * 1.3, -r * 0.2, -r * 1.55);
+  ctx.quadraticCurveTo(-r * 0.2, -r * 1.1, -r * 0.15, -r * 0.8);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Right Horn
+  ctx.beginPath();
+  ctx.moveTo(r * 0.4, -r * 0.7);
+  ctx.quadraticCurveTo(r * 0.85, -r * 1.3, r * 0.2, -r * 1.55);
+  ctx.quadraticCurveTo(r * 0.2, -r * 1.1, r * 0.15, -r * 0.8);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // 3 Piercing yellow-green predatory eyes
+  ctx.fillStyle = '#FFEA00';
+  ctx.shadowColor = '#FFEA00';
+  ctx.shadowBlur = 6 * dpr;
+  ctx.beginPath();
+  ctx.arc(-r * 0.25, -r * 0.25, 2.5 * dpr, 0, Math.PI * 2);
+  ctx.arc(r * 0.25, -r * 0.25, 2.5 * dpr, 0, Math.PI * 2);
+  ctx.arc(0, -r * 0.4, 2.8 * dpr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// 3. Lobhasura (Greed / Armored Horned Obsidian Golem)
+function drawMonsterStone(ctx, o) {
+  const r = o.radius;
+  const damaged = o.hp < o.maxHp;
+
+  // Craggy obsidian polygon boulder
+  ctx.fillStyle = damaged ? '#3D2820' : '#2A2A30';
+  ctx.strokeStyle = damaged ? '#FF9100' : '#8D99AE';
+  ctx.lineWidth = 2.5 * dpr;
+
+  ctx.beginPath();
+  const numPts = 8;
+  for (let i = 0; i < numPts; i++) {
+    const a = (i / numPts) * Math.PI * 2;
+    const rad = r * (0.85 + (i % 2 === 0 ? 0.18 : -0.08));
+    const px = Math.cos(a) * rad;
+    const py = Math.sin(a) * rad;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Massive granite horns
+  ctx.fillStyle = '#1A1A1E';
+  ctx.strokeStyle = damaged ? '#FF6D00' : '#B0B0B8';
+  ctx.lineWidth = 1.5 * dpr;
+  // Left Horn
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.55, -r * 0.4);
+  ctx.lineTo(-r * 1.25, -r * 1.05);
+  ctx.lineTo(-r * 0.35, -r * 0.85);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Right Horn
+  ctx.beginPath();
+  ctx.moveTo(r * 0.55, -r * 0.4);
+  ctx.lineTo(r * 1.25, -r * 1.05);
+  ctx.lineTo(r * 0.35, -r * 0.85);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Glowing Magma Fissures & Cracks
+  ctx.strokeStyle = damaged ? '#FFF' : '#FF6D00';
+  ctx.lineWidth = damaged ? 2.8 * dpr : 1.8 * dpr;
+  ctx.shadowColor = '#FF3D00';
+  ctx.shadowBlur = damaged ? 14 * dpr : 6 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.4, -r * 0.1);
+  ctx.lineTo(0, r * 0.25);
+  ctx.lineTo(-r * 0.2, r * 0.65);
+  ctx.moveTo(0, r * 0.25);
+  ctx.lineTo(r * 0.45, 0);
+  ctx.lineTo(r * 0.25, -r * 0.45);
+  ctx.stroke();
+
+  // Molten Magma Eye Slits
+  ctx.fillStyle = damaged ? '#FFFFFF' : '#FFAB00';
+  ctx.beginPath();
+  ctx.rect(-r * 0.4, -r * 0.2, r * 0.25, 3.5 * dpr);
+  ctx.rect(r * 0.15, -r * 0.2, r * 0.25, 3.5 * dpr);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// 4. Analasura (Hunger / Hellfire Scythe Demon)
+function drawMonsterFire(ctx, o) {
+  const r = o.radius;
+  const time = o.animTime * 9;
+
+  // Outer fire glow
+  const fireAura = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.6);
+  fireAura.addColorStop(0, 'rgba(255, 235, 59, 0.6)');
+  fireAura.addColorStop(0.4, 'rgba(255, 87, 34, 0.4)');
+  fireAura.addColorStop(1, 'rgba(198, 40, 40, 0)');
+  ctx.fillStyle = fireAura;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Spinning curved hellfire scythe blades
+  const numBlades = 3;
+  ctx.save();
+  ctx.rotate(time);
+  for (let i = 0; i < numBlades; i++) {
+    ctx.save();
+    ctx.rotate((i / numBlades) * Math.PI * 2);
+    ctx.fillStyle = '#FF3D00';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(r * 0.8, -r * 0.4, r * 1.4, -r * 0.2);
+    ctx.quadraticCurveTo(r * 0.9, r * 0.2, 0, 0);
+    ctx.fill();
+    // Inner yellow blade flame
+    ctx.fillStyle = '#FFEB3B';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(r * 0.5, -r * 0.25, r * 0.95, -r * 0.1);
+    ctx.quadraticCurveTo(r * 0.6, r * 0.1, 0, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Central flaming demon skull
+  ctx.fillStyle = '#1A0000';
+  ctx.strokeStyle = '#FF6D00';
+  ctx.lineWidth = 2 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Blazing white/yellow eye spots
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(-r * 0.2, -r * 0.1, 2.2 * dpr, 0, Math.PI * 2);
+  ctx.arc(r * 0.2, -r * 0.1, 2.2 * dpr, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// 5. Mahavighna (Titan Asura Boss)
+function drawMonsterBoss(ctx, o) {
+  const r = o.radius;
+  const time = o.animTime * 3;
+
+  // Dark eclipse titan aura
+  const aura = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 1.8);
+  aura.addColorStop(0, 'rgba(74, 20, 140, 0.55)');
+  aura.addColorStop(0.5, 'rgba(21, 0, 36, 0.4)');
+  aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Massive demon elephant ears
+  ctx.fillStyle = '#1F002C';
+  ctx.strokeStyle = '#D500F9';
+  ctx.lineWidth = 2 * dpr;
+  // Left Ear
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.9, -r * 0.2, r * 0.55, r * 0.75, -0.3, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // Right Ear
+  ctx.beginPath();
+  ctx.ellipse(r * 0.9, -r * 0.2, r * 0.55, r * 0.75, 0.3, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  // Obsidian Titan Elephant Head
+  ctx.fillStyle = '#0F0018';
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 2.5 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.15, r * 0.75, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Curved demonic ivory tusks
+  ctx.fillStyle = '#FFF8E1';
+  ctx.strokeStyle = '#D4AF37';
+  ctx.lineWidth = 1.5 * dpr;
+  // Left Tusk
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.4, r * 0.2);
+  ctx.quadraticCurveTo(-r * 1.1, r * 0.5, -r * 0.9, -r * 0.2);
+  ctx.quadraticCurveTo(-r * 0.65, r * 0.1, -r * 0.35, r * 0.05);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Right Tusk
+  ctx.beginPath();
+  ctx.moveTo(r * 0.4, r * 0.2);
+  ctx.quadraticCurveTo(r * 1.1, r * 0.5, r * 0.9, -r * 0.2);
+  ctx.quadraticCurveTo(r * 0.65, r * 0.1, r * 0.35, r * 0.05);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Elephant Demon Trunk
+  ctx.fillStyle = '#1A0026';
+  ctx.strokeStyle = '#AA00FF';
+  ctx.lineWidth = 2 * dpr;
+  const trunkCurl = Math.sin(time) * (r * 0.25);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.25, r * 0.2);
+  ctx.quadraticCurveTo(-r * 0.15 + trunkCurl, r * 0.9, trunkCurl, r * 1.35);
+  ctx.quadraticCurveTo(r * 0.2 + trunkCurl, r * 0.9, r * 0.25, r * 0.2);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Blazing Third Eye on Forehead
+  ctx.fillStyle = '#FF1744';
+  ctx.shadowColor = '#FF1744';
+  ctx.shadowBlur = 15 * dpr;
+  ctx.beginPath();
+  ctx.ellipse(0, -r * 0.45, r * 0.14, r * 0.25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFEA00';
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.45, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+// 6. Heavy Dark Cursed Orb (ORB)
+function drawMonsterOrb(ctx, o) {
+  const r = o.radius;
+  if (o.isDeflected) {
+    // Blazing Divine Solar Missile of Pure Punya!
+    const sunGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 2.2);
+    sunGrad.addColorStop(0, '#FFFFFF');
+    sunGrad.addColorStop(0.3, '#FFD700');
+    sunGrad.addColorStop(0.7, '#FF6F00');
+    sunGrad.addColorStop(1, 'rgba(255, 111, 0, 0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  // Cursed Dark Matter Sphere
+  const darkGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 1.5);
+  darkGrad.addColorStop(0, '#E040FB');
+  darkGrad.addColorStop(0.4, '#311B92');
+  darkGrad.addColorStop(0.85, '#0A0014');
+  darkGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = darkGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#D500F9';
+  ctx.lineWidth = 1.8 * dpr;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Central pulsating red demon eye
+  ctx.fillStyle = '#FF1744';
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// --- Structured Tactical Spawning & Aggressive Difficulty from Level 1 ---
+function spawnSingleObstacle(type, customAngle = null) {
+  const cfg = OBS_CONFIG[type];
+  if (!cfg) return;
+
+  const angle = customAngle !== null ? customAngle : (Math.random() * Math.PI * 2);
   const x = cx + Math.cos(angle) * spawnR;
   const y = cy + Math.sin(angle) * spawnR;
 
-  // Aim toward center with slight natural drift
   const dx = cx - x;
   const dy = cy - y;
   const dist = Math.hypot(dx, dy);
-  const speed = (cfg.baseSpeed + wave * 7) * dpr;
+  const speed = (cfg.baseSpeed + (wave - 1) * 8.5) * dpr;
 
   const obs = {
     x, y,
@@ -2142,53 +2807,85 @@ function spawnObstacle() {
     hp: cfg.hp,
     maxHp: cfg.hp,
     points: cfg.points,
-    rot: Math.random() * Math.PI * 2,
+    rot: 0,
     rotSpeed: (Math.random() - 0.5) * 2,
     animTime: Math.random() * 10,
     trail: [],
-    // For Dark Swarm sub-particles
     swarmOffsets: []
   };
-
-  if (type === 'SWARM') {
-    for (let i = 0; i < 14; i++) {
-      obs.swarmOffsets.push({
-        radius: (6 + Math.random() * 10) * dpr,
-        angle: (i / 14) * Math.PI * 2,
-        speed: 2 + Math.random() * 2.5,
-        size: (2.2 + Math.random() * 1.8) * dpr
-      });
-    }
-  }
 
   obstacles.push(obs);
 }
 
-// --- Obstacle Rendering Pipelines ---
+function spawnObstacle() {
+  // Wave 10 Boss Fight
+  if (wave === 10) {
+    if (waveObsSpawned === 0) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = W * 0.9;
+      obstacles.push({
+        type: 'BOSS',
+        x: cx + Math.cos(angle) * dist,
+        y: cy + Math.sin(angle) * dist,
+        vx: 0,
+        vy: 0,
+        hp: 10,
+        rot: 0,
+        rotSpeed: 1.5,
+        animTime: 0,
+        radius: OBS_CONFIG['BOSS'].radius * dpr,
+        points: OBS_CONFIG['BOSS'].points,
+        angle: angle,
+        shootTimer: 1.8
+      });
+      waveObsCount = 999;
+    }
+    spawnSingleObstacle('WISP');
+    return;
+  }
+
+  // Structured Pool from Wave 1: No slow boring crawl!
+  let pool = ['WISP', 'WISP', 'THORN'];
+  if (wave >= 2) pool = ['WISP', 'THORN', 'THORN'];
+  if (wave >= 3) pool = ['WISP', 'THORN', 'STONE', 'STONE']; // Early Stone Golem!
+  if (wave >= 4) pool = ['THORN', 'STONE', 'SWARM', 'SWARM']; // Early Fire Scythe!
+  if (wave >= 5) pool = ['WISP', 'THORN', 'STONE', 'SWARM'];
+
+  const type = pool[Math.floor(Math.random() * pool.length)];
+  const primaryAngle = Math.random() * Math.PI * 2;
+  spawnSingleObstacle(type, primaryAngle);
+
+  // Tactical Pincer Attack Formation (Double spawn on opposite angles)
+  if (wave >= 3 && Math.random() < 0.28 + (wave * 0.04) && waveObsSpawned < waveObsCount - 1) {
+    const secondaryType = pool[Math.floor(Math.random() * pool.length)];
+    const pincerAngle = primaryAngle + Math.PI + (Math.random() - 0.5) * 0.4;
+    spawnSingleObstacle(secondaryType, pincerAngle);
+    waveObsSpawned++;
+  }
+}
+
+// --- Obstacle Rendering Pipelines (Handcrafted Vectors, Zero Plain Boxes) ---
 function drawObstacles() {
   for (const o of obstacles) {
     ctx.save();
     ctx.translate(o.x, o.y);
 
-    // Get the sprite from our generated pixel art assets
-    const sprite = pixelSprites[o.type];
-    
-    if (sprite) {
-      ctx.rotate(o.rot);
-      
-      // Flash effect if damaged (for STONE or BOSS)
-      if (o.type === 'STONE' && o.hp < o.maxHp) {
-        ctx.shadowColor = C.gold;
-        ctx.shadowBlur = 15 * dpr;
-      }
-      if (o.type === 'BOSS' && o.hp < o.maxHp) {
-        ctx.shadowColor = C.vighnaCore;
-        ctx.shadowBlur = 20 * dpr;
-      }
+    // Dynamic rotation: Demon faces Lord Ganesha as it approaches!
+    const faceAngle = Math.atan2(cy - o.y, cx - o.x);
+    ctx.rotate(faceAngle + Math.PI / 2);
 
-      // Draw the pixel art sprite perfectly centered
-      const drawSize = o.radius * 2.2; // Scale nicely
-      ctx.drawImage(sprite, -drawSize/2, -drawSize/2, drawSize, drawSize);
+    if (o.type === 'WISP') {
+      drawMonsterWisp(ctx, o);
+    } else if (o.type === 'THORN') {
+      drawMonsterThorn(ctx, o);
+    } else if (o.type === 'STONE') {
+      drawMonsterStone(ctx, o);
+    } else if (o.type === 'SWARM') {
+      drawMonsterFire(ctx, o);
+    } else if (o.type === 'BOSS') {
+      drawMonsterBoss(ctx, o);
+    } else if (o.type === 'ORB') {
+      drawMonsterOrb(ctx, o);
     }
 
     ctx.restore();
@@ -2772,7 +3469,7 @@ function destroyObstacle(idx, isAuto = false) {
   o.hp--;
   if (o.hp > 0) {
     // Stone block cracked on first hit
-    sfxDestroy(0);
+    sfxStoneCrack();
     emitBlessingParticles(o.x, o.y, 8, C.stoneHighlight);
     addPopup(o.x, o.y - 15 * dpr, 'CRACK!', C.gold, 13);
     return;
@@ -2812,6 +3509,7 @@ function destroyObstacle(idx, isAuto = false) {
     updateHUDAura();
   } else {
     sfxDestroy(multiplier);
+    sfxDholBeat(false);
   }
 
   score += pts;
@@ -2822,6 +3520,7 @@ function destroyObstacle(idx, isAuto = false) {
 
   // Stone Block breaks into multiple stone chunks and bronze dust
   if (o.type === 'STONE') {
+    sfxStoneCrack();
     for (let c = 0; c < 8; c++) {
       const a = Math.random() * Math.PI * 2;
       const sp = (60 + Math.random() * 85) * dpr;
@@ -2851,7 +3550,7 @@ function destroyObstacle(idx, isAuto = false) {
         vy: Math.sin(a) * sp,
         life: 0.45, maxLife: 0.45,
         size: (2.5 + Math.random() * 2) * dpr,
-        color: Math.random() > 0.4 ? C.gold : '#BA68C8',
+        color: Math.random() > 0.4 ? C.gold : '#FF3D00',
         isPetal: false,
         rot: 0, vRot: 0
       });
@@ -2892,13 +3591,16 @@ function toRoman(num) {
 }
 
 function startWave() {
-  spawnInterval = Math.max(0.3, 1.4 - wave * 0.15);
-  // Spawn first obstacle quickly (0.25s) so action starts immediately
+  // Snappy, aggressive pacing scaling starting from Level 1
+  spawnInterval = Math.max(0.32, 0.95 - wave * 0.08);
   spawnTimer = spawnInterval - 0.25;
-  waveObsCount = 12 + wave * 5;
+  waveObsCount = 14 + wave * 6;
   waveObsSpawned = 0;
   waveMisses = 0;
   state = STATE.PLAYING;
+
+  sfxShankha(); // Ceremonial conch blast heralds every wave
+  triggerMushikaVoice(wave + 1); // Mooshak provokes and rallies Ganesha!
 
   if (uiHudWaveText) {
     uiHudWaveText.textContent = wave === 9 ? 'MAHAVIGHNA' : `WAVE ${toRoman(wave + 1)}`;
@@ -2908,19 +3610,19 @@ function startWave() {
 function checkWaveEnd() {
   if (waveObsSpawned >= waveObsCount && obstacles.length === 0) {
     sfxWaveComplete();
-    const bonus = waveMisses === 0 ? 250 : 50;
+    const bonus = waveMisses === 0 ? 300 : 75;
     score += bonus;
     updateHUDScore();
 
     wave++;
     if (wave >= 10) {
       // Boss defeated / Game complete
-      return; // Handled in boss logic
+      return;
     }
 
     emitBlessingParticles(cx, cy, 35, C.gold);
     if (waveMisses === 0) {
-      addPopup(cx, cy - mandalaR * 1.8, '✨ PERFECT WAVE! +250 ✨', C.gold, 22);
+      addPopup(cx, cy - mandalaR * 1.8, '✨ PERFECT WAVE! +300 ✨', C.gold, 22);
     } else {
       addPopup(cx, cy - mandalaR * 1.8, `WAVE ${toRoman(wave)} COMPLETE! +${bonus}`, C.marigold, 18);
     }
@@ -3265,6 +3967,36 @@ if (uiBtnAudioToggle) {
   });
 }
 
+
+// Mooshak Companion Dialogue Listeners (Voice audio removed per user request)
+if (uiBtnMinimizeMushika) {
+  uiBtnMinimizeMushika.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (uiMushikaCompanion) {
+      uiMushikaCompanion.classList.toggle('minimized');
+    }
+  });
+}
+
+const uiMushikaAvatar = document.getElementById('mushikaAvatar');
+if (uiMushikaAvatar) {
+  uiMushikaAvatar.addEventListener('click', () => {
+    initAudio();
+    if (uiMushikaCompanion) {
+      uiMushikaCompanion.classList.remove('minimized');
+    }
+    if (state === STATE.PLAYING) {
+      triggerMushikaVoice(wave);
+    } else {
+      playVoiceNarration(
+        null,
+        "Prabhu Ganesha! Five sacred Akhanda Diyas burn within your sanctum. Tap approaching demons to strike with your Parashu! Break every obstacle!",
+        'MOOSHAK VAHANA'
+      );
+    }
+  });
+}
+
 // Devotee Profile & Registration Modal Listeners
 if (uiBtnSwitchDevotee) {
   uiBtnSwitchDevotee.addEventListener('click', (e) => {
@@ -3466,6 +4198,7 @@ function gameLoop(timestamp) {
               if (boss.hp <= 0) {
                  triggerMahaAarti();
                  state = STATE.VICTORY;
+                 playVoiceNarration('assets/audio/mushika_victory.mp3', 'Jaya Ganesha! Victory is ours! You broke every obstacle and saved the universe! Now, where is my victory modak?', 'MOOSHAK VAHANA');
                  if (uiGameOverScreen) {
                    uiGameOverScreen.style.display = 'flex';
                    uiGameOverScreen.querySelector('h1').textContent = 'VICTORY';
@@ -3525,6 +4258,10 @@ function gameLoop(timestamp) {
         emitBlessingParticles(o.x, o.y, 16, C.vermillion);
         addPopup(o.x, o.y - 20 * dpr, 'BREACHED!', C.vermillion, 16);
         triggerShake(6 * dpr, 0.3);
+
+        if (Math.random() < 0.45 || blessings === 1) {
+          playVoiceNarration('assets/audio/mushika_breach.mp3', 'Prabhu, watch out! A sacred diya has been extinguished! Defend the sanctum!', 'MOOSHAK VAHANA');
+        }
 
         if (blessings <= 0) {
           blessings = 0;
