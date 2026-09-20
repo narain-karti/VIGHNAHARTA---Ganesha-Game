@@ -757,8 +757,19 @@ html, body {
   .devanagari-title { font-size: 1.8rem; }
   .english-title { font-size: 1.5rem; }
   .btn-traditional { padding: 10px 28px; font-size: 0.95rem; }
-  .diya-item { width: 28px; height: 34px; }
-  .plaque-value { font-size: 1.15rem; }
+  
+  /* HUD Adjustments for Mobile */
+  .hud-overlay { padding: 12px 10px; }
+  .hud-left { top: 12px; left: 10px; }
+  .hud-right { top: 12px; right: 10px; }
+  .hud-center { top: 60px; } /* Move Aura Meter below the score */
+  
+  .diya-item { width: 22px; height: 26px; }
+  .diya-rack { gap: 4px; } /* Pack diyas closer */
+  
+  .brass-plaque { padding: 4px 8px; }
+  .plaque-label { font-size: 0.55rem; letter-spacing: 1px; }
+  .plaque-value { font-size: 1.1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

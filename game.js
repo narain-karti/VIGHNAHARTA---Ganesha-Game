@@ -1936,7 +1936,8 @@ function drawPopups() {
     ctx.save();
     ctx.globalAlpha = tutorialAlpha;
     ctx.fillStyle = C.gold;
-    ctx.font = `600 ${Math.max(13 * dpr, 14)}px "Outfit", sans-serif`;
+    const tutFontSize = Math.min(16, W / 26) * dpr;
+    ctx.font = `600 ${tutFontSize}px "Outfit", sans-serif`;
     ctx.textAlign = 'center';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 8 * dpr;
